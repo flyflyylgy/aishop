@@ -30,6 +30,15 @@ public class OmsOrder {
 
     private BigDecimal payAmount;
 
+    /** 使用的优惠券 ID */
+    private Long couponId;
+
+    /** 优惠券名称快照 */
+    private String couponName;
+
+    /** 优惠抵扣金额 */
+    private BigDecimal couponAmount;
+
     private String receiverName;
 
     private String receiverPhone;

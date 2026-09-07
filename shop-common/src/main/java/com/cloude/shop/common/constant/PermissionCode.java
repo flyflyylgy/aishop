@@ -34,4 +34,8 @@ public final class PermissionCode {
     public static final String ORDER_REMARK = "shop:order:remark";
     public static final String REVIEW_LIST = "shop:review:list";
     public static final String REFUND_HANDLE = "shop:refund:handle";
+    public static final String COUPON_LIST = "shop:coupon:list";
+    public static final String COUPON_CREATE = "shop:coupon:create";
+    public static final String COUPON_UPDATE = "shop:coupon:update";
+    public static final String COUPON_STATUS = "shop:coupon:status";
 }

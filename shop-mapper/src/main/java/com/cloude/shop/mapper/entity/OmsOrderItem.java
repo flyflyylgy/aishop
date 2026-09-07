@@ -24,6 +24,11 @@ public class OmsOrderItem {
 
     private Long productId;
 
+    private Long skuId;
+
+    /** 规格快照 JSON */
+    private String specValues;
+
     private String productPic;
 
     /** 商品名称（下单快照） */

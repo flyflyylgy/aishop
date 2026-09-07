@@ -18,7 +18,8 @@ const routes = [
       { path: 'logs', component: () => import('../views/Logs.vue'), meta: { title: '管理审计日志', icon: 'Document', perm: 'shop:rbac:list' } },
       { path: 'member-logs', component: () => import('../views/MemberLogs.vue'), meta: { title: '会员操作日志', icon: 'Tickets', perm: 'shop:rbac:list' } },
       { path: 'reviews', component: () => import('../views/Reviews.vue'), meta: { title: '评价管理', icon: 'ChatLineSquare', perm: 'shop:review:list' } },
-      { path: 'refunds', component: () => import('../views/Refunds.vue'), meta: { title: '退款审批', icon: 'Wallet', perm: 'shop:refund:handle' } }
+      { path: 'refunds', component: () => import('../views/Refunds.vue'), meta: { title: '退款审批', icon: 'Wallet', perm: 'shop:refund:handle' } },
+      { path: 'coupons', component: () => import('../views/Coupons.vue'), meta: { title: '优惠券', icon: 'Ticket', perm: 'shop:coupon:list' } }
     ]
   }
 ]

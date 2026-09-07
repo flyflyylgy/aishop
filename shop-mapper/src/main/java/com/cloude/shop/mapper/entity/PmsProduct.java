@@ -50,6 +50,12 @@ public class PmsProduct {
     /** 销量（冗余展示） */
     private Integer sale;
 
+    /** 是否多规格:0-否 1-是 */
+    private Integer hasSku;
+
+    /** 规格维度名(逗号分隔:颜色,内存) */
+    private String specNames;
+
     /** 0-下架 1-上架 */
     private Integer status;
 

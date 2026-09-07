@@ -30,4 +30,7 @@ public class OrderCreateParam {
     private String receiverAddr;
 
     private String note;
+
+    /** 使用的会员优惠券记录 ID（sms_coupon_history.id，可选） */
+    private Long couponHistoryId;
 }

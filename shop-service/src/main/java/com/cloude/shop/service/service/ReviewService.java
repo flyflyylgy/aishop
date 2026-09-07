@@ -6,16 +6,19 @@ import com.cloude.shop.common.component.UserContext;
 import com.cloude.shop.common.exception.BusinessException;
 import com.cloude.shop.mapper.entity.OmsOrder;
 import com.cloude.shop.mapper.entity.OmsOrderItem;
+import com.cloude.shop.mapper.entity.PmsProduct;
 import com.cloude.shop.mapper.entity.PmsReview;
 import com.cloude.shop.mapper.entity.UmsMember;
 import com.cloude.shop.mapper.mapper.OmsOrderItemMapper;
 import com.cloude.shop.mapper.mapper.OmsOrderMapper;
+import com.cloude.shop.mapper.mapper.PmsProductMapper;
 import com.cloude.shop.mapper.mapper.PmsReviewMapper;
 import com.cloude.shop.mapper.mapper.UmsMemberMapper;
 import com.cloude.shop.service.dto.ReviewCreateParam;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -31,6 +34,7 @@ public class ReviewService {
     private final OmsOrderMapper orderMapper;
     private final OmsOrderItemMapper orderItemMapper;
     private final UmsMemberMapper memberMapper;
+    private final PmsProductMapper productMapper;
 
     /**
      * 发表评价（仅已完成订单可评，每商品每订单只能评一次）
@@ -102,5 +106,34 @@ public class ReviewService {
         long count = all.size();
         double avg = all.stream().mapToInt(PmsReview::getRating).average().orElse(0.0);
         return Map.of("count", count, "avgRating", Math.round(avg * 10) / 10.0);
+    }
+
+    /**
+     * 我的评价列表（附带商品名称）
+     */
+    public Page<Map<String, Object>> myReviews(Integer pageNum, Integer pageSize) {
+        Page<PmsReview> page = reviewMapper.selectPage(new Page<>(pageNum, pageSize),
+                new LambdaQueryWrapper<PmsReview>()
+                        .eq(PmsReview::getMemberId, UserContext.getUserId())
+                        .orderByDesc(PmsReview::getId));
+        List<Long> productIds = page.getRecords().stream()
+                .map(PmsReview::getProductId).distinct().toList();
+        Map<Long, String> nameMap = productIds.isEmpty() ? Map.of()
+                : productMapper.selectBatchIds(productIds).stream()
+                .collect(Collectors.toMap(PmsProduct::getId, PmsProduct::getName, (a, b) -> a));
+        Page<Map<String, Object>> result = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
+        result.setRecords(page.getRecords().stream().map(r -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", r.getId());
+            m.put("productId", r.getProductId());
+            m.put("productName", nameMap.getOrDefault(r.getProductId(), "已下架商品"));
+            m.put("rating", r.getRating());
+            m.put("content", r.getContent());
+            m.put("pics", r.getPics());
+            m.put("orderNo", r.getOrderNo());
+            m.put("createTime", r.getCreateTime());
+            return m;
+        }).toList());
+        return result;
     }
 }

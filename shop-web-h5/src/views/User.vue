@@ -31,6 +31,10 @@
     </van-cell-group>
 
     <van-cell-group inset style="margin-top: 12px">
+      <van-cell title="领券中心" icon="coupon-o" is-link @click="$router.push('/coupons')" />
+      <van-cell title="我的优惠券" icon="coupon" is-link @click="$router.push('/my-coupons')" />
+      <van-cell title="我的评价" icon="comment-o" is-link @click="$router.push('/reviews')" />
+      <van-cell title="我的退款" icon="after-sale" is-link @click="$router.push('/refunds')" />
       <van-cell title="个人资料" icon="user-o" is-link @click="$router.push('/profile')" />
       <van-cell title="热销推荐" icon="fire-o" is-link @click="$router.push('/')" />
       <van-cell title="关于商城" icon="info-o" is-link

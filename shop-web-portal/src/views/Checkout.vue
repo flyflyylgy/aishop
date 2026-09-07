@@ -8,7 +8,10 @@
           <template #default="{ row }">
             <div style="display: flex; gap: 12px; align-items: center">
               <div class="img-ph" :class="'c' + (row.productId % 4)" style="width: 52px; height: 52px; border-radius: 6px; font-size: 18px">{{ row.productName?.[0] }}</div>
-              <span>{{ row.productName }}</span>
+              <div>
+                <div>{{ row.productName }}</div>
+                <div v-if="row.specValues" style="color: #909399; font-size: 12px">{{ formatSpec(row.specValues) }}</div>
+              </div>
             </div>
           </template>
         </el-table-column>
@@ -59,8 +62,24 @@
         </el-form-item>
       </el-form>
 
+      <div class="coupon-bar">
+        <span class="c-label">优惠券</span>
+        <el-select v-model="couponHistoryId" placeholder="不使用优惠券" clearable style="width: 420px">
+          <el-option v-for="c in usableCoupons" :key="c.historyId" :value="c.historyId"
+            :label="couponLabel(c)" />
+        </el-select>
+        <el-button link type="primary" @click="router.push('/coupons')">去领券</el-button>
+        <span v-if="couponDiscount > 0" style="margin-left: auto; color: #f56c6c; font-weight: 600">
+          已优惠 ¥{{ money(couponDiscount) }}
+        </span>
+      </div>
+
       <div class="submit-bar">
-        <span>共 <b>{{ totalCount }}</b> 件，应付：<span class="price" style="font-size: 24px">¥{{ money(totalPrice) }}</span></span>
+        <div style="text-align: right; line-height: 1.9">
+          <div>共 <b>{{ totalCount }}</b> 件，商品总额：¥{{ money(totalPrice) }}</div>
+          <div v-if="couponDiscount > 0" style="color: #f56c6c">优惠抵扣：-¥{{ money(couponDiscount) }}</div>
+          <div style="font-size: 16px">应付：<span class="price" style="font-size: 24px">¥{{ money(payAmount) }}</span></div>
+        </div>
         <el-button type="danger" size="large" :loading="submitting" @click="submitOrder">提交订单</el-button>
       </div>
     </el-card>
@@ -71,7 +90,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { cartList, orderCreate, addressList } from '../api'
+import { cartList, orderCreate, addressList, myCoupons } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,8 +114,43 @@ const selectedAddrId = ref(null)
 const useManualAddr = ref(false)
 
 const money = v => Number(v ?? 0).toFixed(2)
+const formatSpec = sv => {
+  try {
+    const o = JSON.parse(sv)
+    return Object.entries(o).map(([k, v]) => `${k}:${v}`).join(' ')
+  } catch { return sv }
+}
 const totalCount = computed(() => items.value.reduce((s, i) => s + i.quantity, 0))
 const totalPrice = computed(() => items.value.reduce((s, i) => s + i.price * i.quantity, 0))
+
+// 优惠券
+const coupons = ref([])
+const couponHistoryId = ref(null)
+const usableCoupons = computed(() => coupons.value.filter(c => totalPrice.value >= Number(c.minPoint || 0)))
+const couponDiscount = computed(() => {
+  if (!couponHistoryId.value) return 0
+  const c = coupons.value.find(x => x.historyId === couponHistoryId.value)
+  if (!c || totalPrice.value < Number(c.minPoint || 0)) return 0
+  let d = c.type === 2
+    ? Math.round(totalPrice.value * (100 - c.discount)) / 100
+    : Number(c.faceValue)
+  const max = Math.max(totalPrice.value - 0.01, 0)
+  return Math.min(Math.round(d * 100) / 100, Math.round(max * 100) / 100)
+})
+const payAmount = computed(() => Math.max(totalPrice.value - couponDiscount.value, 0))
+
+async function loadCoupons() {
+  try {
+    const page = await myCoupons({ status: 0, pageNum: 1, pageSize: 50 })
+    coupons.value = page.records || []
+  } catch { coupons.value = [] }
+}
+
+const couponLabel = c => {
+  const rule = c.type === 2 ? (c.discount / 10).toFixed(1) + '折' : '减¥' + money(c.faceValue)
+  const cond = Number(c.minPoint) > 0 ? '满' + money(c.minPoint) + '可用' : '无门槛'
+  return `${c.name}（${cond}，${rule}）`
+}
 
 function toggleAddrMode() {
   useManualAddr.value = !useManualAddr.value
@@ -116,11 +170,18 @@ onMounted(async () => {
     // 立即购买：单商品
     const productId = Number(route.query.productId)
     const quantity = Number(route.query.quantity || 1)
-    items.value = [{ productId, quantity, productName: '加载中...', price: 0 }]
-    // 复用购物车接口不可行，直接取商品详情
+    const skuId = route.query.skuId ? Number(route.query.skuId) : null
+    items.value = [{ productId, skuId, quantity, productName: '加载中...', price: 0 }]
     const { productDetail } = await import('../api')
     const p = await productDetail(productId)
-    items.value = [{ productId, quantity, productName: p.name, price: p.price }]
+    // 多规格商品从选中 SKU 取价
+    let price = p.price
+    let specValues = null
+    if (skuId && p.skus) {
+      const sku = p.skus.find(s => s.id === skuId)
+      if (sku) { price = sku.price; specValues = sku.specValues }
+    }
+    items.value = [{ productId, skuId, quantity, productName: p.name, price, specValues }]
   } else {
     // 来自购物车：仅取勾选条目
     const all = (await cartList()) || []
@@ -130,6 +191,8 @@ onMounted(async () => {
       router.push('/cart')
     }
   }
+
+  loadCoupons()
 })
 
 async function submitOrder() {
@@ -142,8 +205,9 @@ async function submitOrder() {
   submitting.value = true
   try {
     const payload = {
-      items: items.value.map(i => ({ productId: i.productId, quantity: i.quantity })),
-      note: form.note
+      items: items.value.map(i => ({ productId: i.productId, skuId: i.skuId, quantity: i.quantity })),
+      note: form.note,
+      couponHistoryId: couponHistoryId.value || null
     }
     if (!useManualAddr.value && selectedAddrId.value) {
       payload.addressId = selectedAddrId.value
@@ -164,6 +228,8 @@ async function submitOrder() {
 
 <style scoped>
 .submit-bar { display: flex; justify-content: flex-end; align-items: center; gap: 20px; margin-top: 16px; padding: 16px; background: #fff8f8; border-radius: 8px; }
+.coupon-bar { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 12px 0; border-top: 1px dashed #ebeef5; }
+.c-label { font-weight: 600; }
 .addr-radios { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; width: 100%; }
 .addr-radio { height: auto; padding: 10px 14px; margin-right: 0 !important; }
 .addr-line1 { display: block; font-weight: 600; }

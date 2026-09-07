@@ -15,6 +15,7 @@
               @click="$router.push(`/product/${item.productId}`)">{{ item.productName?.[0] }}</div>
             <div style="flex: 1; min-width: 0; padding-left: 10px">
               <div style="font-size: 13px; line-height: 1.35">{{ item.productName }}</div>
+              <div v-if="item.specValues" style="font-size: 11px; color: #969799; margin-top: 2px">{{ formatSpec(item.specValues) }}</div>
               <div style="display: flex; align-items: center; margin-top: 10px">
                 <span class="price">¥{{ money(item.price) }}</span>
                 <van-stepper :model-value="item.quantity" :min="1" :max="item.availableStock || 99" theme="round"
@@ -54,6 +55,12 @@ const refreshCartBadge = inject('refreshCartBadge')
 const list = ref([])
 const checkedIds = ref([])
 const money = v => Number(v ?? 0).toFixed(2)
+const formatSpec = sv => {
+  try {
+    const o = JSON.parse(sv)
+    return Object.entries(o).map(([k, v]) => `${k}:${v}`).join(' ')
+  } catch { return sv }
+}
 
 const checkedItems = computed(() => list.value.filter(i => checkedIds.value.includes(i.id)))
 const totalPrice = computed(() => Math.round(checkedItems.value.reduce((s, i) => s + i.price * i.quantity, 0) * 100))

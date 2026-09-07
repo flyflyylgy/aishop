@@ -16,7 +16,10 @@
             <template #default="{ row }">
               <div style="display: flex; gap: 12px; align-items: center; cursor: pointer" @click="$router.push(`/product/${row.productId}`)">
                 <div class="img-ph" :class="'c' + (row.productId % 4)" style="width: 56px; height: 56px; border-radius: 6px; font-size: 20px">{{ row.productName?.[0] }}</div>
-                <span>{{ row.productName }}</span>
+                <div>
+                  <div>{{ row.productName }}</div>
+                  <div v-if="row.specValues" style="color: #909399; font-size: 12px">{{ formatSpec(row.specValues) }}</div>
+                </div>
               </div>
             </template>
           </el-table-column>
@@ -65,6 +68,12 @@ import { cartList, cartQuantity, cartSelected, cartDelete, cartClear } from '../
 const router = useRouter()
 const list = ref([])
 const money = v => Number(v ?? 0).toFixed(2)
+const formatSpec = sv => {
+  try {
+    const o = JSON.parse(sv)
+    return Object.entries(o).map(([k, v]) => `${k}:${v}`).join(' ')
+  } catch { return sv }
+}
 
 const selectedItems = computed(() => list.value.filter(i => i.selected === 1))
 const selectedCount = computed(() => selectedItems.value.reduce((s, i) => s + i.quantity, 0))

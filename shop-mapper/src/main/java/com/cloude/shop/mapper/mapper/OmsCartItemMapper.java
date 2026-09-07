@@ -10,9 +10,15 @@ import java.math.BigDecimal;
 
 public interface OmsCartItemMapper extends BaseMapper<OmsCartItem> {
 
-    @Select("SELECT * FROM oms_cart_item WHERE member_id = #{memberId} AND product_id = #{productId} AND delete_flag = 1 LIMIT 1")
+    @Select("SELECT * FROM oms_cart_item WHERE member_id = #{memberId} AND product_id = #{productId} AND (sku_id IS NULL OR sku_id = 0) AND delete_flag = 1 LIMIT 1")
     OmsCartItem selectSoftDeleted(@Param("memberId") Long memberId, @Param("productId") Long productId);
 
-    @Update("UPDATE oms_cart_item SET delete_flag = 0, quantity = #{quantity}, price = #{price}, selected = 1, update_time = NOW() WHERE member_id = #{memberId} AND product_id = #{productId} AND delete_flag = 1")
+    @Update("UPDATE oms_cart_item SET delete_flag = 0, quantity = #{quantity}, price = #{price}, selected = 1, update_time = NOW() WHERE member_id = #{memberId} AND product_id = #{productId} AND (sku_id IS NULL OR sku_id = 0) AND delete_flag = 1")
     int restoreSoftDeleted(@Param("memberId") Long memberId, @Param("productId") Long productId, @Param("quantity") Integer quantity, @Param("price") BigDecimal price);
+
+    @Select("SELECT * FROM oms_cart_item WHERE member_id = #{memberId} AND sku_id = #{skuId} AND delete_flag = 1 LIMIT 1")
+    OmsCartItem selectSoftDeletedBySku(@Param("memberId") Long memberId, @Param("skuId") Long skuId);
+
+    @Update("UPDATE oms_cart_item SET delete_flag = 0, quantity = #{quantity}, price = #{price}, selected = 1, update_time = NOW() WHERE member_id = #{memberId} AND sku_id = #{skuId} AND delete_flag = 1")
+    int restoreSoftDeletedBySku(@Param("memberId") Long memberId, @Param("skuId") Long skuId, @Param("quantity") Integer quantity, @Param("price") BigDecimal price);
 }

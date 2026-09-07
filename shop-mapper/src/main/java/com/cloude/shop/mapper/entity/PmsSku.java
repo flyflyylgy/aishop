@@ -10,28 +10,33 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 购物车
+ * 商品 SKU（多规格）
+ * 状态：0-禁用 1-启用
  */
 @Data
-@TableName("oms_cart_item")
-public class OmsCartItem {
+@TableName("pms_sku")
+public class PmsSku {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private Long memberId;
-
     private Long productId;
 
-    private Long skuId;
+    private String skuCode;
 
-    private Integer quantity;
+    /** 规格值 JSON：{"颜色":"红","内存":"8G"} */
+    private String specValues;
 
-    /** 加入时价格 */
     private BigDecimal price;
 
-    /** 0-未勾选 1-勾选 */
-    private Integer selected;
+    private Integer availableStock;
+
+    private Integer lockedStock;
+
+    private Integer soldStock;
+
+    /** 0-禁用 1-启用 */
+    private Integer status;
 
     @TableLogic
     private Integer deleteFlag;

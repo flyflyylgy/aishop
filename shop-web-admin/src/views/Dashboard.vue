@@ -1,7 +1,42 @@
 <template>
   <div class="page-card">
     <el-row :gutter="16">
-      <el-col :span="8">
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="销售额(元)" :value="stats.totalSales" :precision="2">
+            <template #prefix><el-icon color="#f56c6c"><Money /></el-icon></template>
+          </el-statistic>
+          <div style="color: #909399; font-size: 12px; margin-top: 6px">今日 ¥{{ Number(stats.todaySales || 0).toFixed(2) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="订单总数" :value="stats.orderTotal">
+            <template #prefix><el-icon color="#67c23a"><List /></el-icon></template>
+          </el-statistic>
+          <div style="color: #909399; font-size: 12px; margin-top: 6px">今日新增 {{ stats.todayOrders }} 笔</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="会员总数" :value="stats.memberTotal">
+            <template #prefix><el-icon color="#409eff"><User /></el-icon></template>
+          </el-statistic>
+          <div style="color: #909399; font-size: 12px; margin-top: 6px">注册用户</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="待发货" :value="stats.orderToShip">
+            <template #prefix><el-icon color="#e6a23c"><Van /></el-icon></template>
+          </el-statistic>
+          <div style="color: #909399; font-size: 12px; margin-top: 6px">已付款待发出</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="16" style="margin-top: 16px">
+      <el-col :span="6">
         <el-card shadow="hover">
           <el-statistic title="商品总数" :value="stats.productTotal">
             <template #prefix><el-icon color="#409eff"><Goods /></el-icon></template>
@@ -9,20 +44,28 @@
           <div style="color: #909399; font-size: 12px; margin-top: 6px">上架 {{ stats.productOnSale }} / 下架 {{ stats.productOffSale }}</div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <el-card shadow="hover">
-          <el-statistic title="订单总数" :value="stats.orderTotal">
-            <template #prefix><el-icon color="#67c23a"><List /></el-icon></template>
+          <el-statistic title="待付款" :value="stats.orderPending">
+            <template #prefix><el-icon color="#e6a23c"><Timer /></el-icon></template>
           </el-statistic>
-          <div style="color: #909399; font-size: 12px; margin-top: 6px">待付款 {{ stats.orderPending }} 笔</div>
+          <div style="color: #909399; font-size: 12px; margin-top: 6px">未支付订单</div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <el-card shadow="hover">
-          <el-statistic title="角色数" :value="stats.roleTotal">
-            <template #prefix><el-icon color="#e6a23c"><UserFilled /></el-icon></template>
+          <el-statistic title="已发货" :value="stats.orderShipped">
+            <template #prefix><el-icon color="#67c23a"><Van /></el-icon></template>
           </el-statistic>
-          <div style="color: #909399; font-size: 12px; margin-top: 6px">RBAC 权限管控中</div>
+          <div style="color: #909399; font-size: 12px; margin-top: 6px">待确认收货</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="已完成" :value="stats.orderDone">
+            <template #prefix><el-icon color="#909399"><CircleCheck /></el-icon></template>
+          </el-statistic>
+          <div style="color: #909399; font-size: 12px; margin-top: 6px">已关闭 {{ stats.orderClosed }} 笔</div>
         </el-card>
       </el-col>
     </el-row>
@@ -36,8 +79,8 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="{ 0: 'warning', 1: 'primary', 2: 'success', 3: 'info', 4: 'danger' }[row.status]">
-              {{ { 0: '待付款', 1: '已付款', 2: '已发货', 3: '已完成', 4: '已关闭' }[row.status] }}
+            <el-tag :type="statusType(row.status)">
+              {{ statusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -52,27 +95,19 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import { Goods, List, UserFilled } from '@element-plus/icons-vue'
-import { productPage, orderPage, roleList } from '../api'
+import { Money, List, User, Van, Goods, Timer, CircleCheck } from '@element-plus/icons-vue'
+import { statsDashboard } from '../api'
 
-const stats = reactive({ productTotal: 0, productOnSale: 0, productOffSale: 0, orderTotal: 0, orderPending: 0, roleTotal: 0 })
+const stats = reactive({})
 const latestOrders = ref([])
 
+const STATUS_MAP = { 0: ['warning', '待付款'], 1: ['primary', '已付款'], 2: ['success', '已发货'], 3: ['info', '已完成'], 4: ['danger', '已关闭'] }
+const statusType = s => STATUS_MAP[s]?.[0] || 'info'
+const statusText = s => STATUS_MAP[s]?.[1] || '未知'
+
 onMounted(async () => {
-  const products = await productPage({ pageNum: 1, pageSize: 1 })
-  stats.productTotal = Number(products.total || 0)
-  const on = await productPage({ pageNum: 1, pageSize: 1, status: 1 })
-  const off = await productPage({ pageNum: 1, pageSize: 1, status: 0 })
-  stats.productOnSale = Number(on.total || 0)
-  stats.productOffSale = Number(off.total || 0)
-
-  const orders = await orderPage({ pageNum: 1, pageSize: 5 })
-  stats.orderTotal = Number(orders.total || 0)
-  latestOrders.value = orders.records || []
-  const pending = await orderPage({ pageNum: 1, pageSize: 1, status: 0 })
-  stats.orderPending = Number(pending.total || 0)
-
-  const roles = await roleList()
-  stats.roleTotal = (roles || []).length
+  const data = await statsDashboard()
+  Object.assign(stats, data)
+  latestOrders.value = data.latestOrders || []
 })
 </script>

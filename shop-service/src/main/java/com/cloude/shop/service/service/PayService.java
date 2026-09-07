@@ -124,7 +124,11 @@ public class PayService {
         List<OmsOrderItem> items = orderItemMapper.selectList(new LambdaQueryWrapper<OmsOrderItem>()
                 .eq(OmsOrderItem::getOrderNo, param.getOrderNo()));
         for (OmsOrderItem item : items) {
-            stockService.confirmSold(item.getProductId(), item.getQuantity());
+            if (item.getSkuId() != null) {
+                stockService.confirmSkuSold(item.getSkuId(), item.getQuantity());
+            } else {
+                stockService.confirmSold(item.getProductId(), item.getQuantity());
+            }
         }
         log.info("支付成功, 订单已确认. orderNo={}, payNo={}", param.getOrderNo(), param.getPayNo());
     }

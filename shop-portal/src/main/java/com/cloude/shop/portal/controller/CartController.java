@@ -35,9 +35,11 @@ public class CartController {
     @PostMapping("/add")
     public CommonResult<Void> add(@RequestBody Map<String, Object> body) {
         Long productId = Long.valueOf(String.valueOf(body.get("productId")));
+        Long skuId = body.containsKey("skuId") && body.get("skuId") != null
+                ? Long.valueOf(String.valueOf(body.get("skuId"))) : null;
         Integer quantity = body.containsKey("quantity")
                 ? Integer.valueOf(String.valueOf(body.get("quantity"))) : 1;
-        cartService.add(UserContext.getUserId(), productId, quantity);
+        cartService.add(UserContext.getUserId(), productId, skuId, quantity);
         return CommonResult.success();
     }
 

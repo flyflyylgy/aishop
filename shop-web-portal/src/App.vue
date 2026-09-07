@@ -27,6 +27,10 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="orders">我的订单</el-dropdown-item>
+                  <el-dropdown-item command="refunds">我的退款</el-dropdown-item>
+                  <el-dropdown-item command="reviews">我的评价</el-dropdown-item>
+                  <el-dropdown-item command="coupons">领券中心</el-dropdown-item>
+                  <el-dropdown-item command="myCoupons">我的优惠券</el-dropdown-item>
                   <el-dropdown-item command="addresses">收货地址</el-dropdown-item>
                   <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
                 </el-dropdown-menu>
@@ -84,6 +88,10 @@ function onUserCommand(cmd) {
   if (cmd === 'profile') router.push('/profile')
   if (cmd === 'orders') router.push('/orders')
   if (cmd === 'addresses') router.push('/addresses')
+  if (cmd === 'reviews') router.push('/reviews')
+  if (cmd === 'refunds') router.push('/refunds')
+  if (cmd === 'coupons') router.push('/coupons')
+  if (cmd === 'myCoupons') router.push('/my-coupons')
   if (cmd === 'logout') { user.logout(); router.push('/login') }
 }
 

@@ -50,7 +50,8 @@ export const categoryTree = () => request.get('/product/category/tree')
 
 // ---------- 购物车 ----------
 export const cartList = () => request.get('/cart/list')
-export const cartAdd = (productId, quantity = 1) => request.post('/cart/add', { productId, quantity })
+export const cartAdd = (productId, quantity = 1, skuId = null) =>
+  request.post('/cart/add', { productId, quantity, skuId })
 export const cartQuantity = (itemId, quantity) => request.post(`/cart/quantity/${itemId}/${quantity}`)
 export const cartSelected = (itemId, selected) => request.post(`/cart/selected/${itemId}/${selected}`)
 export const cartDelete = itemId => request.post(`/cart/delete/${itemId}`)
@@ -80,7 +81,13 @@ export const addressSetDefault = id => request.post(`/address/default/${id}`)
 export const reviewCreate = data => request.post('/review', data)
 export const reviewPage = (productId, params) => request.get(`/review/product/${productId}`, { params })
 export const reviewStats = productId => request.get(`/review/product/${productId}/stats`)
+export const myReviews = params => request.get('/review/my', { params })
 
 // ---------- 退款 ----------
 export const refundApply = data => request.post('/review/refund/apply', data)
 export const myRefunds = params => request.get('/review/refund/my', { params })
+
+// ---------- 优惠券 ----------
+export const couponCenter = () => request.get('/coupon/center')
+export const couponReceive = couponId => request.post(`/coupon/receive/${couponId}`)
+export const myCoupons = params => request.get('/coupon/my', { params })

@@ -45,6 +45,8 @@ export const productUpdate = (id, data) => request.post(`/product/update/${id}`,
 export const productStatus = (id, status) => request.post(`/product/status/${id}/${status}`)
 export const productDelete = id => request.post(`/product/delete/${id}`)
 export const productCategories = () => request.get('/product/categories')
+export const productSkus = productId => request.get(`/product/skus/${productId}`)
+export const productSaveSkus = (productId, data) => request.post(`/product/skus/${productId}`, data)
 
 // ---------- 分类 ----------
 export const categoryList = () => request.get('/category/list')
@@ -83,3 +85,12 @@ export const reviewPage = params => request.get('/review-refund/review/page', { 
 // ---------- 退款审批 ----------
 export const refundPage = params => request.get('/review-refund/refund/page', { params })
 export const refundHandle = (id, data) => request.post(`/review-refund/refund/handle/${id}`, data)
+
+// ---------- 优惠券 ----------
+export const couponPage = params => request.get('/coupon/page', { params })
+export const couponCreate = data => request.post('/coupon/create', data)
+export const couponUpdate = (id, data) => request.post(`/coupon/update/${id}`, data)
+export const couponStatus = (id, status) => request.post(`/coupon/status/${id}/${status}`)
+
+// ---------- 首页统计 ----------
+export const statsDashboard = () => request.get('/stats/dashboard')

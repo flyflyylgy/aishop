@@ -10,11 +10,13 @@ import com.cloude.shop.mapper.entity.OmsOrder;
 import com.cloude.shop.mapper.entity.OmsOrderItem;
 import com.cloude.shop.mapper.entity.OmsCartItem;
 import com.cloude.shop.mapper.entity.PmsProduct;
+import com.cloude.shop.mapper.entity.PmsSku;
 import com.cloude.shop.mapper.entity.UmsMemberAddress;
 import com.cloude.shop.mapper.mapper.OmsCartItemMapper;
 import com.cloude.shop.mapper.mapper.OmsOrderItemMapper;
 import com.cloude.shop.mapper.mapper.OmsOrderMapper;
 import com.cloude.shop.mapper.mapper.PmsProductMapper;
+import com.cloude.shop.mapper.mapper.PmsSkuMapper;
 import com.cloude.shop.service.dto.OrderCreateParam;
 import com.cloude.shop.service.dto.OrderDetailVO;
 import com.cloude.shop.service.dto.OrderItemParam;
@@ -55,10 +57,12 @@ public class OrderService {
     private final OmsOrderMapper orderMapper;
     private final OmsOrderItemMapper orderItemMapper;
     private final PmsProductMapper productMapper;
+    private final PmsSkuMapper skuMapper;
     private final OmsCartItemMapper cartItemMapper;
     private final StockService stockService;
     private final RabbitTemplate rabbitTemplate;
     private final MemberAddressService memberAddressService;
+    private final CouponService couponService;
 
     /**
      * 创建订单（下单）
@@ -83,46 +87,90 @@ public class OrderService {
                         param.getItems().stream().map(i -> i.getProductId()).toList()).stream()
                 .collect(Collectors.toMap(PmsProduct::getId, Function.identity()));
 
+        // 预取 SKU（has_sku=1 的商品）
+        List<Long> skuIds = param.getItems().stream()
+                .map(OrderItemParam::getSkuId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        Map<Long, PmsSku> skuMap = skuIds.isEmpty() ? Map.of()
+                : skuMapper.selectBatchIds(skuIds).stream()
+                .collect(Collectors.toMap(PmsSku::getId, Function.identity()));
+
         for (OrderItemParam itemParam : param.getItems()) {
             PmsProduct product = productMap.get(itemParam.getProductId());
             if (product == null || product.getStatus() != 1) {
                 throw new BusinessException("商品不存在或已下架(ID:" + itemParam.getProductId() + ")");
             }
-            stockService.lockStock(product.getId(), itemParam.getQuantity());
-            BigDecimal subTotal = product.getPrice().multiply(BigDecimal.valueOf(itemParam.getQuantity()));
-            totalAmount = totalAmount.add(subTotal);
+            // 多规格商品走 SKU 库存/价格；单规格走 product 库存/价格
+            if (Integer.valueOf(1).equals(product.getHasSku()) && itemParam.getSkuId() != null) {
+                PmsSku sku = skuMap.get(itemParam.getSkuId());
+                if (sku == null || !sku.getProductId().equals(product.getId()) || sku.getStatus() != 1) {
+                    throw new BusinessException("SKU 不存在或已禁用");
+                }
+                stockService.lockSkuStock(sku.getId(), itemParam.getQuantity());
+                BigDecimal subTotal = sku.getPrice().multiply(BigDecimal.valueOf(itemParam.getQuantity()));
+                totalAmount = totalAmount.add(subTotal);
+            } else {
+                stockService.lockStock(product.getId(), itemParam.getQuantity());
+                BigDecimal subTotal = product.getPrice().multiply(BigDecimal.valueOf(itemParam.getQuantity()));
+                totalAmount = totalAmount.add(subTotal);
+            }
         }
 
-        // 2. 订单落库
+        // 2. 优惠券校验 + 折扣计算（可选）
+        CouponService.CouponUse couponUse = null;
+        if (param.getCouponHistoryId() != null) {
+            couponUse = couponService.validateAndCalc(memberId, param.getCouponHistoryId(), totalAmount);
+        }
+        BigDecimal payAmount = couponUse != null
+                ? totalAmount.subtract(couponUse.getDiscount())
+                : totalAmount;
+
+        // 3. 订单落库
         String orderNo = generateOrderNo(memberId);
         OmsOrder order = new OmsOrder();
         order.setOrderNo(orderNo);
         order.setMemberId(memberId);
         order.setStatus(OrderStatus.PENDING_PAYMENT.getCode());
         order.setTotalAmount(totalAmount);
-        order.setPayAmount(totalAmount);
+        order.setPayAmount(payAmount);
+        if (couponUse != null) {
+            order.setCouponId(couponUse.getCouponId());
+            order.setCouponName(couponUse.getCouponName());
+            order.setCouponAmount(couponUse.getDiscount());
+        }
         order.setReceiverName(address != null ? address.getReceiverName() : param.getReceiverName());
         order.setReceiverPhone(address != null ? address.getReceiverPhone() : param.getReceiverPhone());
         order.setReceiverAddr(address != null ? address.getReceiverAddr() : param.getReceiverAddr());
         order.setNote(param.getNote());
         orderMapper.insert(order);
 
+        // 核销优惠券（CAS 0->1，失败抛错回滚整个订单事务）
+        if (couponUse != null) {
+            couponService.markUsed(couponUse.getHistoryId(), orderNo);
+        }
+
         // 3. 订单明细快照
         for (OrderItemParam itemParam : param.getItems()) {
             PmsProduct product = productMap.get(itemParam.getProductId());
+            PmsSku sku = (Integer.valueOf(1).equals(product.getHasSku()) && itemParam.getSkuId() != null)
+                    ? skuMap.get(itemParam.getSkuId()) : null;
+            BigDecimal itemPrice = sku != null ? sku.getPrice() : product.getPrice();
             OmsOrderItem item = new OmsOrderItem();
             item.setOrderId(order.getId());
             item.setOrderNo(orderNo);
             item.setProductId(product.getId());
+            item.setSkuId(sku != null ? sku.getId() : null);
+            item.setSpecValues(sku != null ? sku.getSpecValues() : null);
             item.setProductPic(product.getMainImage());
             item.setProductName(product.getName());
-            item.setPrice(product.getPrice());
+            item.setPrice(itemPrice);
             item.setQuantity(itemParam.getQuantity());
-            item.setTotalPrice(product.getPrice().multiply(BigDecimal.valueOf(itemParam.getQuantity())));
+            item.setTotalPrice(itemPrice.multiply(BigDecimal.valueOf(itemParam.getQuantity())));
             orderItemMapper.insert(item);
         }
 
-        // 4. 清除购物车中已下单商品
+        // 4. 清除购物车中已下单商品（按 productId，旧单规格条目 skuId=null 也会被清掉）
         cartItemMapper.delete(new LambdaQueryWrapper<OmsCartItem>()
                 .eq(OmsCartItem::getMemberId, memberId)
                 .in(OmsCartItem::getProductId, param.getItems().stream()
@@ -177,8 +225,14 @@ public class OrderService {
         List<OmsOrderItem> items = orderItemMapper.selectList(new LambdaQueryWrapper<OmsOrderItem>()
                 .eq(OmsOrderItem::getOrderNo, orderNo));
         for (OmsOrderItem item : items) {
-            stockService.releaseStock(item.getProductId(), item.getQuantity());
+            if (item.getSkuId() != null) {
+                stockService.releaseSkuStock(item.getSkuId(), item.getQuantity());
+            } else {
+                stockService.releaseStock(item.getProductId(), item.getQuantity());
+            }
         }
+        // 回退优惠券（恢复未使用；已过期则置为过期）
+        couponService.releaseByOrder(orderNo);
         log.info("订单已关闭并释放库存, orderNo={}", orderNo);
         return true;
     }
@@ -323,6 +377,9 @@ public class OrderService {
         vo.setStatus(order.getStatus());
         vo.setTotalAmount(order.getTotalAmount());
         vo.setPayAmount(order.getPayAmount());
+        vo.setCouponId(order.getCouponId());
+        vo.setCouponName(order.getCouponName());
+        vo.setCouponAmount(order.getCouponAmount());
         vo.setReceiverName(order.getReceiverName());
         vo.setReceiverPhone(order.getReceiverPhone());
         vo.setReceiverAddr(order.getReceiverAddr());

@@ -9,6 +9,10 @@ const routes = [
   { path: '/checkout', component: () => import('../views/Checkout.vue'), meta: { title: '确认订单', auth: true } },
   { path: '/orders', component: () => import('../views/Orders.vue'), meta: { title: '我的订单', auth: true } },
   { path: '/addresses', component: () => import('../views/Addresses.vue'), meta: { title: '收货地址', auth: true } },
+  { path: '/reviews', component: () => import('../views/MyReviews.vue'), meta: { title: '我的评价', auth: true } },
+  { path: '/refunds', component: () => import('../views/MyRefunds.vue'), meta: { title: '我的退款', auth: true } },
+  { path: '/coupons', component: () => import('../views/CouponCenter.vue'), meta: { title: '领券中心', auth: true } },
+  { path: '/my-coupons', component: () => import('../views/MyCoupons.vue'), meta: { title: '我的优惠券', auth: true } },
   { path: '/profile', component: () => import('../views/Profile.vue'), meta: { title: '个人资料', auth: true } }
 ]
 

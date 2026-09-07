@@ -9,14 +9,29 @@
           <h2>{{ product.name }}</h2>
           <p style="color: #909399; margin: 8px 0 16px">{{ product.subTitle }}</p>
           <div class="price-panel">
-            <span class="price" style="font-size: 28px">¥{{ money(product.price) }}</span>
-            <span v-if="product.originalPrice && product.originalPrice > product.price" class="price-origin" style="font-size: 14px">¥{{ money(product.originalPrice) }}</span>
+            <span class="price" style="font-size: 28px">¥{{ money(currentPrice) }}</span>
+            <span v-if="product.originalPrice && product.originalPrice > currentPrice" class="price-origin" style="font-size: 14px">¥{{ money(product.originalPrice) }}</span>
             <span style="margin-left: auto; color: #909399; font-size: 13px">已售 {{ product.sale || 0 }}</span>
           </div>
+
+          <!-- 规格选择 -->
+          <div v-if="product.hasSku === 1 && specDims.length" style="margin-top: 16px">
+            <div v-for="(dim, di) in specDims" :key="di" class="spec-row">
+              <span class="spec-label">{{ dim }}</span>
+              <el-tag v-for="v in specOptions[dim]" :key="v"
+                :type="selectedSpec[dim] === v ? 'danger' : 'info'"
+                :effect="selectedSpec[dim] === v ? 'dark' : 'plain'"
+                style="margin-right: 8px; cursor: pointer"
+                @click="selectSpec(dim, v)">
+                {{ v }}
+              </el-tag>
+            </div>
+          </div>
+
           <el-descriptions :column="2" style="margin-top: 16px">
             <el-descriptions-item label="库存">
-              <el-tag :type="product.availableStock > 0 ? 'success' : 'danger'">
-                {{ product.availableStock > 0 ? `可售 ${product.availableStock}` : '暂时缺货' }}
+              <el-tag :type="currentStock > 0 ? 'success' : 'danger'">
+                {{ currentStock > 0 ? `可售 ${currentStock}` : '暂时缺货' }}
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="状态">
@@ -25,11 +40,11 @@
           </el-descriptions>
           <div style="margin-top: 20px; display: flex; align-items: center; gap: 16px">
             <span>数量</span>
-            <el-input-number v-model="quantity" :min="1" :max="Math.max(1, product.availableStock)" />
-            <el-button type="warning" size="large" :icon="ShoppingCart" :disabled="product.availableStock <= 0 || product.status !== 1" @click="addToCart">
+            <el-input-number v-model="quantity" :min="1" :max="Math.max(1, currentStock)" />
+            <el-button type="warning" size="large" :icon="ShoppingCart" :disabled="!canBuy" @click="addToCart">
               加入购物车
             </el-button>
-            <el-button type="danger" size="large" :disabled="product.availableStock <= 0 || product.status !== 1" @click="buyNow">
+            <el-button type="danger" size="large" :disabled="!canBuy" @click="buyNow">
               立即购买
             </el-button>
           </div>
@@ -73,7 +88,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ShoppingCart } from '@element-plus/icons-vue'
@@ -84,6 +99,66 @@ const router = useRouter()
 const product = ref(null)
 const quantity = ref(1)
 const money = v => Number(v ?? 0).toFixed(2)
+
+// SKU 规格选择
+const specDims = ref([])
+const specOptions = reactive({})
+const selectedSpec = reactive({})
+const matchedSku = ref(null)
+
+const currentPrice = computed(() => {
+  if (product.value?.hasSku === 1 && matchedSku.value) return matchedSku.value.price
+  return product.value?.price || 0
+})
+const currentStock = computed(() => {
+  if (product.value?.hasSku === 1) {
+    return matchedSku.value ? matchedSku.value.availableStock : 0
+  }
+  return product.value?.availableStock || 0
+})
+const canBuy = computed(() => {
+  if (product.value?.status !== 1) return false
+  if (product.value?.hasSku === 1) return matchedSku.value && matchedSku.value.availableStock > 0
+  return (product.value?.availableStock || 0) > 0
+})
+
+function buildSpecSelector() {
+  if (!product.value || product.value.hasSku !== 1 || !product.value.skus) return
+  const dims = (product.value.specNames || '').split(',').map(s => s.trim()).filter(Boolean)
+  specDims.value = dims
+  // 收集每个维度的可选值
+  const opts = {}
+  dims.forEach(d => opts[d] = new Set())
+  product.value.skus.forEach(sku => {
+    try {
+      const vals = JSON.parse(sku.specValues)
+      dims.forEach(d => { if (vals[d]) opts[d].add(vals[d]) })
+    } catch { /* ignore */ }
+  })
+  dims.forEach(d => { specOptions[d] = [...opts[d]] })
+  // 默认选第一项
+  dims.forEach(d => { selectedSpec[d] = specOptions[d][0] })
+  matchSku()
+}
+
+function selectSpec(dim, val) {
+  selectedSpec[dim] = val
+  matchSku()
+}
+
+function matchSku() {
+  if (!product.value?.skus) { matchedSku.value = null; return }
+  const dims = specDims.value
+  const allSelected = dims.every(d => selectedSpec[d])
+  if (!allSelected) { matchedSku.value = null; return }
+  matchedSku.value = product.value.skus.find(sku => {
+    try {
+      const vals = JSON.parse(sku.specValues)
+      return dims.every(d => vals[d] === selectedSpec[d])
+    } catch { return false }
+  }) || null
+  quantity.value = 1
+}
 
 // 评价
 const reviews = ref([])
@@ -102,12 +177,18 @@ async function loadReviews() {
 onMounted(async () => {
   product.value = await productDetail(route.params.id)
   quantity.value = 1
+  buildSpecSelector()
   loadReviews()
   reviewStatsData.value = await reviewStats(route.params.id)
 })
 
 async function addToCart() {
-  await cartAdd(product.value.id, quantity.value)
+  const skuId = product.value.hasSku === 1 ? matchedSku.value?.id : null
+  if (product.value.hasSku === 1 && !skuId) {
+    ElMessage.warning('请选择完整规格')
+    return
+  }
+  await cartAdd(product.value.id, quantity.value, skuId)
   ElMessage.success('已加入购物车')
 }
 
@@ -116,7 +197,12 @@ function buyNow() {
     ElMessage.warning('请先登录')
     return router.push({ path: '/login', query: { redirect: route.fullPath } })
   }
-  router.push({ path: '/checkout', query: { productId: product.value.id, quantity: quantity.value } })
+  const skuId = product.value.hasSku === 1 ? matchedSku.value?.id : null
+  if (product.value.hasSku === 1 && !skuId) {
+    ElMessage.warning('请选择完整规格')
+    return
+  }
+  router.push({ path: '/checkout', query: { productId: product.value.id, quantity: quantity.value, ...(skuId ? { skuId } : {}) } })
 }
 </script>
 
@@ -124,5 +210,7 @@ function buyNow() {
 .detail { display: flex; gap: 36px; }
 .detail-info { flex: 1; }
 .price-panel { display: flex; align-items: baseline; background: #fff5f5; padding: 14px 16px; border-radius: 8px; }
+.spec-row { margin-bottom: 12px; }
+.spec-label { display: inline-block; width: 60px; color: #909399; font-size: 14px; }
 @media (max-width: 768px) { .detail { flex-direction: column; } .detail > div:first-child { width: 100% !important; height: 260px !important; } }
 </style>

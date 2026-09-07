@@ -53,6 +53,14 @@ public class ReviewRefundController {
         return CommonResult.success(reviewService.stats(productId));
     }
 
+    @Operation(summary = "我的评价列表")
+    @GetMapping("/my")
+    public CommonResult<Page<Map<String, Object>>> myReviews(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return CommonResult.success(reviewService.myReviews(pageNum, pageSize));
+    }
+
     // ==================== 退款 ====================
 
     @Operation(summary = "申请退款")

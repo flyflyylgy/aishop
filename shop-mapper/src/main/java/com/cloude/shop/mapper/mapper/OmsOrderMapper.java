@@ -3,8 +3,10 @@ package com.cloude.shop.mapper.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cloude.shop.mapper.entity.OmsOrder;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -48,4 +50,16 @@ public interface OmsOrderMapper extends BaseMapper<OmsOrder> {
     @Update("UPDATE oms_order SET status = 3, finish_time = #{finishTime} "
             + "WHERE id = #{orderId} AND status = 2")
     int casComplete(@Param("orderId") Long orderId, @Param("finishTime") LocalDateTime finishTime);
+
+    /**
+     * 已支付订单销售额合计（状态 1/2/3）
+     */
+    @Select("SELECT COALESCE(SUM(pay_amount), 0) FROM oms_order WHERE status IN (1, 2, 3)")
+    BigDecimal sumPaidAmount();
+
+    /**
+     * 指定时间起已支付订单销售额合计
+     */
+    @Select("SELECT COALESCE(SUM(pay_amount), 0) FROM oms_order WHERE pay_time IS NOT NULL AND pay_time >= #{start}")
+    BigDecimal sumPaidAmountSince(@Param("start") LocalDateTime start);
 }
