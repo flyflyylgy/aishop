@@ -12,3 +12,4 @@ dist/
 *.pid
 portal.log
 admin.log
+.trae/
