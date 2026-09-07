@@ -211,6 +211,100 @@ curl -X POST http://localhost:9300/portal-api/pay/notify \
 - **微服务化**：参考 mall 的 mall-portal/mall-admin 拆分方式拆出独立部署单元
 - **可观测**：接入 SkyWalking / Prometheus + Grafana
 
+## 模块化设计（Modular Design）
+
+本项目完整实现了四项核心模块化设计原则：
+
+### 1. 全局异常处理（Global Exception Handling）
+
+> 一个集中的"异常捕获站"，所有模块抛出的错误都流向这里统一处理。
+
+**实现**：[GlobalExceptionHandler.java](shop-common/src/main/java/com/cloude/shop/common/exception/GlobalExceptionHandler.java) — `@RestControllerAdvice` 统一异常处理器
+
+| 异常类型 | 处理方式 | HTTP 状态 |
+|---|---|---|
+| `BusinessException` | 业务异常，返回错误消息 | 200 + code=400 |
+| `MethodArgumentNotValidException` | 参数校验失败 | 200 + code=400 |
+| `HttpMessageNotReadableException` | JSON 格式错误 | 200 + code=400 |
+| `DuplicateKeyException` | 唯一约束冲突（重复提交） | 200 + code=400 |
+| `NoHandlerFoundException` / `NoResourceFoundException` | 接口不存在 | 200 + code=404 |
+| `Exception`（兜底） | 未知系统异常 | 200 + code=500 |
+
+所有异常统一返回 `CommonResult` 结构，前端只需解析 `body.code` 判断业务结果。
+
+### 2. AOP 面向切面编程（Aspect-Oriented Programming）
+
+> 在不修改业务代码的情况下，统一处理所有模块的通用逻辑（如日志、鉴权、异常捕获）。
+
+**实现**：双审计日志切面
+
+| 切面 | 文件 | 切点 | 通知类型 | 功能 |
+|---|---|---|---|---|
+| 管理端审计 | [AdminLogAspect.java](shop-admin/src/main/java/com/cloude/shop/admin/aspect/AdminLogAspect.java) | `@RequirePermission` + `@OpLog` 注解方法 | `@Around` | 记录管理员操作（登录/改密/CRUD/发货/授权等），含 IP/参数/成败/错误原因，敏感字段自动掩码 |
+| 会员端审计 | [MemberLogAspect.java](shop-portal/src/main/java/com/cloude/shop/portal/aspect/MemberLogAspect.java) | `@OpLog` 注解方法 | `@Around` | 记录会员操作（注册/登录/下单/支付/取消/收货/购物车） |
+
+**实现**：三重拦截器链
+
+| 拦截器 | 文件 | 功能 |
+|---|---|---|
+| `RateLimitInterceptor` | [RateLimitInterceptor.java](shop-common/src/main/java/com/cloude/shop/common/component/RateLimitInterceptor.java) | Redis 固定窗口限流（敏感接口 60s/10 次，普通 10s/100 次，超限 429） |
+| `JwtInterceptor` | [JwtInterceptor.java](shop-common/src/main/java/com/cloude/shop/common/component/JwtInterceptor.java) | JWT 签名校验 + Redis 登录态检查 + UserContext 填充 |
+| `AdminPermissionInterceptor` | [AdminPermissionInterceptor.java](shop-admin/src/main/java/com/cloude/shop/admin/config/AdminPermissionInterceptor.java) | RBAC 权限检查（`@RequirePermission` 注解匹配） |
+
+拦截器在 [WebMvcConfig](shop-admin/src/main/java/com/cloude/shop/admin/config/WebMvcConfig.java) 中按顺序注册，业务代码零侵入。
+
+### 3. 代码复用 / DRY 原则（Don't Repeat Yourself）
+
+> 避免重复代码，提高维护性。
+
+**shop-common 公共模块**（所有子模块共享）：
+
+| 公共类 | 文件 | 复用场景 |
+|---|---|---|
+| `CommonResult<T>` | [CommonResult.java](shop-common/src/main/java/com/cloude/shop/common/api/CommonResult.java) | 统一 API 响应封装（success/failed/forbidden/unauthorized） |
+| `ResultCode` | [ResultCode.java](shop-common/src/main/java/com/cloude/shop/common/api/ResultCode.java) | 统一业务状态码枚举（200/400/401/403/404/500/600/601/602） |
+| `BusinessException` | [BusinessException.java](shop-common/src/main/java/com/cloude/shop/common/exception/BusinessException.java) | 统一业务异常，携带 code+message |
+| `JwtInterceptor` | [JwtInterceptor.java](shop-common/src/main/java/com/cloude/shop/common/component/JwtInterceptor.java) | portal/admin 共用 JWT 校验逻辑 |
+| `RateLimitInterceptor` | [RateLimitInterceptor.java](shop-common/src/main/java/com/cloude/shop/common/component/RateLimitInterceptor.java) | portal/admin 共用限流逻辑 |
+| `UserContext` | [UserContext.java](shop-common/src/main/java/com/cloude/shop/common/component/UserContext.java) | ThreadLocal 当前用户上下文，避免参数传递 |
+| `JwtUtil` | [JwtUtil.java](shop-common/src/main/java/com/cloude/shop/common/util/JwtUtil.java) | JWT 签发/解析/校验工具 |
+| `SensitiveLogUtil` | [SensitiveLogUtil.java](shop-common/src/main/java/com/cloude/shop/common/util/SensitiveLogUtil.java) | 日志脱敏工具（password/token 自动掩码 ******） |
+| `@RequirePermission` | [RequirePermission.java](shop-common/src/main/java/com/cloude/shop/common/annotation/RequirePermission.java) | 权限注解，一行代码声明接口所需权限 |
+| `@OpLog` | [OpLog.java](shop-common/src/main/java/com/cloude/shop/common/annotation/OpLog.java) | 审计注解，一行代码声明操作名称 |
+
+### 4. 关注点分离（Separation of Concerns, SoC）
+
+> 业务逻辑（做什么）和系统逻辑（如日志、异常）分开管理，各司其职。
+
+**Maven 多模块拆分**（根 [pom.xml](pom.xml)）：
+
+| 模块 | 职责 | 依赖 |
+|---|---|---|
+| `shop-common` | 系统逻辑：异常处理、拦截器、工具类、注解、公共 API | 无 |
+| `shop-mapper` | 数据访问：Entity、Mapper 接口、Flyway 迁移 | shop-common |
+| `shop-service` | 业务逻辑：Service、DTO、组件（验证码/锁定/RBAC） | shop-mapper |
+| `shop-portal` | 前台入口：Controller、AOP 切面、配置 | shop-service |
+| `shop-admin` | 后台入口：Controller、AOP 切面、配置 | shop-service |
+
+**shop-service 内部分层**：
+
+| 目录 | 职责 | 示例文件 |
+|---|---|---|
+| `service/` | 核心业务逻辑 | OrderService、MemberService、AdminService、RbacService |
+| `dto/` | 数据传输对象 | OrderCreateParam、TokenVO、OrderDetailVO |
+| `component/` | 可复用业务组件 | CaptchaService、LoginGuard |
+| `config/` | 业务配置 | RedisKeepAliveConfig |
+
+**分离效果**：
+- Controller 只管接收请求 → 调 Service → 返回 `CommonResult`（不处理异常/不写日志）
+- Service 只管业务逻辑（不处理 JWT/权限/限流/日志）
+- 异常处理 → GlobalExceptionHandler 集中捕获
+- 操作日志 → AOP 切面自动记录
+- 权限校验 → 拦截器前置检查
+- 限流 → 拦截器前置检查
+
+业务代码中 **零行** try-catch、零行 日志记录、零行 权限判断——全部由系统层统一处理。
+
 ## 功能完成清单
 
 > 每次新增功能后同步更新此表，提交 Git 并推送到远程仓库。
