@@ -13,6 +13,7 @@
         <el-button type="primary" :icon="Search" @click="load">搜索</el-button>
         <div style="flex: 1"></div>
         <el-button type="success" :icon="Plus" @click="openCreate">新建商品</el-button>
+        <el-button :loading="exporting" @click="doExport">导出Excel</el-button>
       </div>
 
       <el-table :data="list" v-loading="loading">
@@ -140,12 +141,13 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
-import { productPage, productCreate, productUpdate, productStatus, productDelete, productCategories, productSkus, productSaveSkus } from '../api'
+import { productPage, productCreate, productUpdate, productStatus, productDelete, productCategories, productSkus, productSaveSkus, exportProducts } from '../api'
 
 const list = ref([])
 const categories = ref([])
 const total = ref(0)
 const loading = ref(false)
+const exporting = ref(false)
 const dialog = ref(false)
 const saving = ref(false)
 const editingId = ref(null)
@@ -158,6 +160,20 @@ const rules = {
   name: [{ required: true, message: '请输入商品名称', trigger: 'blur' }],
   categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
   price: [{ required: true, message: '请输入售价', trigger: 'blur' }]
+}
+
+async function doExport() {
+  exporting.value = true
+  try {
+    const p = {}
+    if (query.keyword) p.keyword = query.keyword
+    if (query.status !== null && query.status !== '') p.status = query.status
+    if (query.categoryId) p.categoryId = query.categoryId
+    await exportProducts(p)
+    ElMessage.success('导出成功')
+  } finally {
+    exporting.value = false
+  }
 }
 
 async function load() {

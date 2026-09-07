@@ -13,6 +13,7 @@
         <el-input v-model="query.keyword" placeholder="订单号/收货人/电话" clearable style="width: 230px"
           @keyup.enter="load" @clear="load" />
         <el-button type="primary" @click="load">查询</el-button>
+        <el-button :loading="exporting" @click="doExport">导出Excel</el-button>
       </div>
 
       <el-table :data="list" v-loading="loading">
@@ -121,7 +122,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { orderPage, orderDetail, orderShip, orderRemark } from '../api'
+import { orderPage, orderDetail, orderShip, orderRemark, exportOrders } from '../api'
 import { hasPerm } from '../utils/perm'
 
 const fmt = t => t ? String(t).replace('T', ' ').slice(0, 19) : ''
@@ -131,7 +132,21 @@ const list = ref([])
 const total = ref(0)
 const loading = ref(false)
 const saving = ref(false)
+const exporting = ref(false)
 const query = reactive({ status: null, keyword: '', pageNum: 1, pageSize: 10 })
+
+async function doExport() {
+  exporting.value = true
+  try {
+    const p = {}
+    if (query.status !== null && query.status !== '') p.status = query.status
+    if (query.keyword) p.keyword = query.keyword
+    await exportOrders(p)
+    ElMessage.success('导出成功')
+  } finally {
+    exporting.value = false
+  }
+}
 
 async function load() {
   loading.value = true

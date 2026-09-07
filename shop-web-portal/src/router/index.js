@@ -13,6 +13,7 @@ const routes = [
   { path: '/refunds', component: () => import('../views/MyRefunds.vue'), meta: { title: '我的退款', auth: true } },
   { path: '/coupons', component: () => import('../views/CouponCenter.vue'), meta: { title: '领券中心', auth: true } },
   { path: '/my-coupons', component: () => import('../views/MyCoupons.vue'), meta: { title: '我的优惠券', auth: true } },
+  { path: '/messages', component: () => import('../views/Messages.vue'), meta: { title: '我的消息', auth: true } },
   { path: '/profile', component: () => import('../views/Profile.vue'), meta: { title: '个人资料', auth: true } }
 ]
 

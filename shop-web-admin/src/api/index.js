@@ -11,14 +11,25 @@ request.interceptors.request.use(config => {
 
 request.interceptors.response.use(
   res => {
+    // 文件下载（blob）：直接返回完整响应，由调用方处理文件名与保存
+    if (res.config.responseType === 'blob') return res
     const body = res.data
     if (body.code === 200) return body.data
     ElMessage.error(body.message || '操作失败')
     return Promise.reject(new Error(body.message))
   },
-  err => {
+  async err => {
     const status = err.response?.status
     const body = err.response?.data
+    // 下载请求的错误体是 blob，尝试读出后端错误信息
+    if (body instanceof Blob && body.type.includes('json')) {
+      try {
+        const txt = await body.text()
+        const j = JSON.parse(txt)
+        ElMessage.error(j.message || '导出失败')
+        return Promise.reject(err)
+      } catch { /* fallthrough */ }
+    }
     if (status === 401) {
       localStorage.removeItem('admin_token')
       if (!location.pathname.startsWith('/login')) {
@@ -31,6 +42,27 @@ request.interceptors.response.use(
     return Promise.reject(err)
   }
 )
+
+// ---------- Excel 导出 ----------
+async function downloadExport(url, params) {
+  const res = await request.get(url, { params, responseType: 'blob' })
+  let filename = 'export.xlsx'
+  const cd = res.headers['content-disposition'] || ''
+  const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i)
+  if (m) filename = decodeURIComponent(m[1])
+  const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(link.href)
+}
+export const exportOrders = params => downloadExport('/export/order', params)
+export const exportProducts = params => downloadExport('/export/product', params)
+export const exportMembers = params => downloadExport('/export/member', params)
+export const exportCoupons = params => downloadExport('/export/coupon', params)
 
 // ---------- 认证 ----------
 export const adminCaptcha = () => request.get('/admin/captcha')

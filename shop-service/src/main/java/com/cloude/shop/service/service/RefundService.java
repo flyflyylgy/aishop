@@ -26,6 +26,7 @@ public class RefundService {
 
     private final OmsRefundMapper refundMapper;
     private final OmsOrderMapper orderMapper;
+    private final MessageService messageService;
 
     /**
      * 会员申请退款（已付款/已发货订单可申请，已完成订单 7 天内可申请）
@@ -120,5 +121,12 @@ public class RefundService {
                 orderMapper.updateById(o);
             }
         }
+        // 站内信：退款审批结果通知
+        String title = approved ? "退款已通过" : "退款申请未通过";
+        String content = "您对订单 " + refund.getOrderNo() + " 的退款申请"
+                + (approved ? "已通过，退款金额 ¥" + refund.getAmount() + " 将原路退回。"
+                : "未通过审核。" + (adminRemark == null ? "" : "备注：" + adminRemark));
+        messageService.send(refund.getMemberId(), MessageService.TYPE_AFTER_SALE, title, content,
+                "refund", refund.getOrderNo());
     }
 }

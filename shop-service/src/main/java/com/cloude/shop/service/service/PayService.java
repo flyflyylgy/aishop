@@ -46,6 +46,7 @@ public class PayService {
     private final OmsOrderItemMapper orderItemMapper;
     private final OmsPayLogMapper payLogMapper;
     private final StockService stockService;
+    private final MessageService messageService;
 
     /**
      * 创建支付单（模拟）：生成支付流水号，实际项目中此处调用微信/支付宝统一下单
@@ -131,5 +132,10 @@ public class PayService {
             }
         }
         log.info("支付成功, 订单已确认. orderNo={}, payNo={}", param.getOrderNo(), param.getPayNo());
+
+        // 站内信：支付成功通知
+        messageService.send(order.getMemberId(), MessageService.TYPE_PAY, "支付成功",
+                "您的订单 " + param.getOrderNo() + " 已支付成功，金额 ¥" + order.getPayAmount()
+                        + "，我们将尽快为您发货。", "order", param.getOrderNo());
     }
 }

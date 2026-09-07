@@ -18,6 +18,9 @@
           <el-badge :value="cartCount" :hidden="!cartCount">
             <el-button :icon="ShoppingCart" circle @click="$router.push('/cart')" />
           </el-badge>
+          <el-badge v-if="user.member" :value="unreadCount" :hidden="!unreadCount" :max="99">
+            <el-button :icon="Bell" circle @click="$router.push('/messages')" />
+          </el-badge>
           <template v-if="user.member">
             <el-dropdown @command="onUserCommand">
               <span style="cursor: pointer; display: flex; align-items: center; gap: 4px">
@@ -27,6 +30,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="orders">我的订单</el-dropdown-item>
+                  <el-dropdown-item command="messages">我的消息<el-badge v-if="unreadCount" :value="unreadCount" :max="99" style="margin-left: 8px" /></el-dropdown-item>
                   <el-dropdown-item command="refunds">我的退款</el-dropdown-item>
                   <el-dropdown-item command="reviews">我的评价</el-dropdown-item>
                   <el-dropdown-item command="coupons">领券中心</el-dropdown-item>
@@ -56,17 +60,19 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, ShoppingCart } from '@element-plus/icons-vue'
+import { Search, ShoppingCart, Bell } from '@element-plus/icons-vue'
 import { useUserStore } from './store/user'
-import { cartList } from './api'
+import { cartList, messageUnreadCount } from './api'
 
 const route = useRoute()
 const router = useRouter()
 const user = useUserStore()
 const keyword = ref('')
 const cartCount = ref(0)
+const unreadCount = ref(0)
+let pollTimer = null
 
 const showNav = computed(() => !['/login', '/register'].includes(route.path))
 
@@ -78,6 +84,14 @@ async function loadCartCount() {
     const list = await cartList()
     cartCount.value = (list || []).reduce((s, i) => s + i.quantity, 0)
   } catch { /* 未登录等场景忽略 */ }
+}
+
+async function loadUnread() {
+  if (!user.token) { unreadCount.value = 0; return }
+  try {
+    const res = await messageUnreadCount()
+    unreadCount.value = Number(res?.count || 0)
+  } catch { /* 忽略 */ }
 }
 
 function doSearch() {
@@ -92,9 +106,17 @@ function onUserCommand(cmd) {
   if (cmd === 'refunds') router.push('/refunds')
   if (cmd === 'coupons') router.push('/coupons')
   if (cmd === 'myCoupons') router.push('/my-coupons')
+  if (cmd === 'messages') router.push('/messages')
   if (cmd === 'logout') { user.logout(); router.push('/login') }
 }
 
-onMounted(loadCartCount)
-defineExpose({ loadCartCount })
+watch(() => route.fullPath, () => { loadCartCount(); loadUnread() })
+
+onMounted(() => {
+  loadCartCount()
+  loadUnread()
+  pollTimer = setInterval(loadUnread, 60000)
+})
+onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
+defineExpose({ loadCartCount, loadUnread })
 </script>

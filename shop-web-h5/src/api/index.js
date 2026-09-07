@@ -92,3 +92,9 @@ export const myRefunds = params => request.get('/review/refund/my', { params })
 export const couponCenter = () => request.get('/coupon/center')
 export const couponReceive = couponId => request.post(`/coupon/receive/${couponId}`)
 export const myCoupons = params => request.get('/coupon/my', { params })
+
+// ---------- 站内信 ----------
+export const messagePage = params => request.get('/message/page', { params })
+export const messageUnreadCount = () => request.get('/message/unread-count')
+export const messageRead = id => request.post(`/message/read/${id}`)
+export const messageReadAll = () => request.post('/message/read-all')

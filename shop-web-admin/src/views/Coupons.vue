@@ -16,6 +16,7 @@
           <el-input v-model="query.keyword" placeholder="券名称" clearable style="width: 180px" @keyup.enter="load" />
           <el-button type="primary" @click="load">查询</el-button>
           <el-button type="success" style="margin-left: auto" @click="openCreate">新建优惠券</el-button>
+          <el-button :loading="exporting" @click="doExport">导出Excel</el-button>
         </div>
       </template>
 
@@ -120,10 +121,11 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { couponPage, couponCreate, couponUpdate, couponStatus } from '../api'
+import { couponPage, couponCreate, couponUpdate, couponStatus, exportCoupons } from '../api'
 
 const loading = ref(false)
 const saving = ref(false)
+const exporting = ref(false)
 const list = ref([])
 const total = ref(0)
 const query = reactive({ status: null, type: null, keyword: '', pageNum: 1, pageSize: 10 })
@@ -194,6 +196,20 @@ async function save() {
     load()
   } finally {
     saving.value = false
+  }
+}
+
+async function doExport() {
+  exporting.value = true
+  try {
+    const p = {}
+    if (query.status !== null && query.status !== '') p.status = query.status
+    if (query.type !== null && query.type !== '') p.type = query.type
+    if (query.keyword) p.keyword = query.keyword
+    await exportCoupons(p)
+    ElMessage.success('导出成功')
+  } finally {
+    exporting.value = false
   }
 }
 

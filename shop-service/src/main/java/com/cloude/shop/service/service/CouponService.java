@@ -43,11 +43,12 @@ public class CouponService {
     // ==================== 后台管理 ====================
 
     public Page<SmsCoupon> adminPage(Integer status, Integer type, String keyword, Integer pageNum, Integer pageSize) {
+        String kw = keyword == null ? null : keyword.trim();
         return couponMapper.selectPage(new Page<>(pageNum, pageSize),
                 new LambdaQueryWrapper<SmsCoupon>()
                         .eq(status != null, SmsCoupon::getStatus, status)
                         .eq(type != null, SmsCoupon::getType, type)
-                        .like(keyword != null && !keyword.isBlank(), SmsCoupon::getName, keyword.trim())
+                        .like(kw != null && !kw.isBlank(), SmsCoupon::getName, kw)
                         .orderByDesc(SmsCoupon::getId));
     }
 

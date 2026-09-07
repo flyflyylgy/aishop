@@ -9,6 +9,7 @@
           <el-option label="封禁" :value="0" />
         </el-select>
         <el-button type="primary" @click="load">查询</el-button>
+        <el-button :loading="exporting" @click="doExport">导出Excel</el-button>
       </div>
 
       <el-table :data="list" v-loading="loading">
@@ -52,14 +53,28 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { memberPage, memberStatus } from '../api'
+import { memberPage, memberStatus, exportMembers } from '../api'
 
 const fmt = t => t ? String(t).replace('T', ' ').slice(0, 19) : ''
 
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
+const exporting = ref(false)
 const query = reactive({ keyword: '', status: null, pageNum: 1, pageSize: 10 })
+
+async function doExport() {
+  exporting.value = true
+  try {
+    const p = {}
+    if (query.keyword) p.keyword = query.keyword
+    if (query.status !== null && query.status !== '') p.status = query.status
+    await exportMembers(p)
+    ElMessage.success('导出成功')
+  } finally {
+    exporting.value = false
+  }
+}
 
 async function load() {
   loading.value = true

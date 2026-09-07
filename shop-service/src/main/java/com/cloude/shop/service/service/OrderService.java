@@ -63,6 +63,7 @@ public class OrderService {
     private final RabbitTemplate rabbitTemplate;
     private final MemberAddressService memberAddressService;
     private final CouponService couponService;
+    private final MessageService messageService;
 
     /**
      * 创建订单（下单）
@@ -222,6 +223,8 @@ public class OrderService {
             log.info("关单跳过(状态已变更), orderNo={}", orderNo);
             return false;
         }
+        OmsOrder closedOrder = orderMapper.selectOne(new LambdaQueryWrapper<OmsOrder>()
+                .eq(OmsOrder::getOrderNo, orderNo));
         List<OmsOrderItem> items = orderItemMapper.selectList(new LambdaQueryWrapper<OmsOrderItem>()
                 .eq(OmsOrderItem::getOrderNo, orderNo));
         for (OmsOrderItem item : items) {
@@ -234,6 +237,11 @@ public class OrderService {
         // 回退优惠券（恢复未使用；已过期则置为过期）
         couponService.releaseByOrder(orderNo);
         log.info("订单已关闭并释放库存, orderNo={}", orderNo);
+        // 站内信：订单关闭通知
+        if (closedOrder != null) {
+            messageService.send(closedOrder.getMemberId(), MessageService.TYPE_ORDER, "订单已关闭",
+                    "您的订单 " + orderNo + " 已关闭（" + (reason == null ? "" : reason) + "）。", "order", orderNo);
+        }
         return true;
     }
 
@@ -284,6 +292,10 @@ public class OrderService {
         if (affected == 0) {
             throw new BusinessException(ResultCode.ORDER_STATE_ILLEGAL);
         }
+        // 站内信：发货通知
+        messageService.send(order.getMemberId(), MessageService.TYPE_LOGISTICS, "订单已发货",
+                "您的订单 " + order.getOrderNo() + " 已发货，" + expressCompany.trim()
+                        + " 运单号 " + expressNo.trim() + "，请注意查收。", "order", order.getOrderNo());
     }
 
     /**

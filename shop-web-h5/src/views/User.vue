@@ -31,6 +31,9 @@
     </van-cell-group>
 
     <van-cell-group inset style="margin-top: 12px">
+      <van-cell title="我的消息" icon="chat-o" is-link
+        :value="member && unread ? unread + ' 条未读' : ''"
+        @click="$router.push('/messages')" />
       <van-cell title="领券中心" icon="coupon-o" is-link @click="$router.push('/coupons')" />
       <van-cell title="我的优惠券" icon="coupon" is-link @click="$router.push('/my-coupons')" />
       <van-cell title="我的评价" icon="comment-o" is-link @click="$router.push('/reviews')" />
@@ -56,13 +59,25 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onActivated, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast } from 'vant'
+import { messageUnreadCount } from '../api'
 
 const router = useRouter()
 const member = ref(JSON.parse(localStorage.getItem('member') || 'null'))
 const showAbout = ref(false)
+const unread = ref(0)
+
+async function loadUnread() {
+  if (!localStorage.getItem('token')) { unread.value = 0; return }
+  try {
+    const res = await messageUnreadCount()
+    unread.value = Number(res?.count || 0)
+  } catch { /* 忽略 */ }
+}
+onMounted(loadUnread)
+onActivated(loadUnread)
 
 function goOrders(status) {
   router.push(status === undefined ? '/orders' : '/orders')
