@@ -1,0 +1,7 @@
+# 生产 profile：java -jar --spring.profiles.active=prod
+# 关闭 API 文档，避免接口信息泄露
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

@@ -1,0 +1,34 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f6f8; color: #303133; }
+a { text-decoration: none; color: inherit; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+
+/* 顶部导航 */
+.navbar { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.04); position: sticky; top: 0; z-index: 100; }
+.navbar-inner { max-width: 1200px; margin: 0 auto; padding: 0 16px; height: 60px; display: flex; align-items: center; gap: 24px; }
+.logo { font-size: 20px; font-weight: 700; color: #409eff; white-space: nowrap; cursor: pointer; }
+.logo span { color: #f56c6c; }
+
+/* 渐变占位图（无商品图时） */
+.img-ph { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); user-select: none; }
+.img-ph.c1 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.img-ph.c2 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.img-ph.c3 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.img-ph.c4 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
+.price { color: #f56c6c; font-weight: 700; }
+.price-origin { color: #c0c4cc; text-decoration: line-through; font-size: 12px; margin-left: 6px; }
+
+/* 商品卡片 */
+.product-card { background: #fff; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform .2s, box-shadow .2s; }
+.product-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,.1); }
+.product-card .thumb { height: 180px; font-size: 40px; }
+.product-card .info { padding: 12px 14px 16px; }
+.product-card .name { font-size: 14px; line-height: 1.4; height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.product-card .price-row { margin-top: 8px; display: flex; align-items: baseline; }
+.product-card .price { font-size: 18px; }
+.product-card .sale { margin-left: auto; color: #909399; font-size: 12px; }
+
+.page-bg { padding: 20px 0 40px; }

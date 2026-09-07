@@ -1,0 +1,13 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f6f8; color: #303133; }
+a { text-decoration: none; color: inherit; }
+
+.page-card { margin: 16px; }
+.table-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.price { color: #f56c6c; font-weight: 700; }
+.img-ph { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); user-select: none; }
+.img-ph.c1 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.img-ph.c2 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.img-ph.c3 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.img-ph.c4 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
