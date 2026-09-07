@@ -62,29 +62,48 @@ docker compose up -d
 mvn clean package -DskipTests
 ```
 
-### 3. 启动服务（先启动 portal，由它执行数据库迁移）
+### 3. 环境变量配置（安全要求）
 
-本机 Docker 映射 MySQL 到 **3307**（避开本机已占用的 3306），yml 默认值 3306，因此需通过环境变量覆盖端口：
+复制 `.env.example` 为 `.env` 并填入实际值。`.env` 已被 `.gitignore` 排除，不会提交到仓库。
 
 ```bash
-# Windows PowerShell（端口选 9300/9301：避开 Windows Hyper-V 动态排除区，
-# 该区间每次重启会漂移，若绑定报"port already in use"请用
-# netsh interface ipv4 show excludedportrange protocol=tcp 查看后换端口）
-$env:MYSQL_PORT='3307'
-$env:SERVER_PORT='9300'; java -jar shop-portal/target/shop-portal-1.0.0.jar
-# 另开窗口
-$env:MYSQL_PORT='3307'
-$env:SERVER_PORT='9301'; java -jar shop-admin/target/shop-admin-1.0.0.jar
-
-# Linux / macOS
-MYSQL_PORT=3307 SERVER_PORT=9300 java -jar shop-portal/target/shop-portal-1.0.0.jar
-MYSQL_PORT=3307 SERVER_PORT=9301 java -jar shop-admin/target/shop-admin-1.0.0.jar
+cp .env.example .env
+# 编辑 .env 填入 MySQL 密码、JWT 密钥等
 ```
 
-可覆盖的环境变量：`MYSQL_HOST/MYSQL_PORT/MYSQL_DB/MYSQL_USER/MYSQL_PASSWORD`、`REDIS_HOST/REDIS_PORT`、`RABBITMQ_HOST/RABBITMQ_PORT`、`SERVER_PORT`、`JWT_SECRET`。
+**环境分离**：
+
+| Profile | 命令 | 说明 |
+|---|---|---|
+| dev（默认） | `java -jar xxx.jar --spring.profiles.active=dev` | 允许开发默认密码、开启 Swagger |
+| prod | `java -jar xxx.jar --spring.profiles.active=prod` | 关闭 Swagger，JWT_SECRET 必须注入（dev 密钥会拒绝启动） |
+
+> 生产环境启动前必须设置：`JWT_SECRET`（>= 32 字节随机串）、`MYSQL_PASSWORD`、`CORS_ORIGINS`（真实前端域名）。生成密钥：`openssl rand -base64 48`
+
+### 4. 启动服务（先启动 portal，由它执行数据库迁移）
+
+```bash
+# Windows PowerShell
+$env:MYSQL_PORT='3307'
+$env:MYSQL_PASSWORD='root123456'       # 同 docker-compose 中设置的密码
+$env:JWT_SECRET='dev-only-please-change-me-in-production-0123456789'
+java -jar shop-portal/target/shop-portal-1.0.0.jar --spring.profiles.active=dev
+# 另开窗口
+$env:MYSQL_PORT='3307'
+$env:MYSQL_PASSWORD='root123456'
+$env:JWT_SECRET='dev-only-please-change-me-in-production-0123456789'
+java -jar shop-admin/target/shop-admin-1.0.0.jar --spring.profiles.active=dev
+
+# Linux / macOS
+MYSQL_PORT=3307 MYSQL_PASSWORD=root123456 \
+JWT_SECRET=dev-only-please-change-me-in-production-0123456789 \
+java -jar shop-portal/target/shop-portal-1.0.0.jar --spring.profiles.active=dev
+```
+
+可覆盖的环境变量：`MYSQL_HOST/MYSQL_PORT/MYSQL_DB/MYSQL_USER/MYSQL_PASSWORD`、`REDIS_HOST/REDIS_PORT/REDIS_PASSWORD`、`RABBITMQ_HOST/RABBITMQ_PORT/RABBITMQ_USER/RABBITMQ_PASSWORD`、`JWT_SECRET`、`ADMIN_INIT_PASSWORD`、`CORS_ORIGINS`。
 
 数据库 `cloude_shop`、表结构、种子数据（4 分类/5 品牌/8 商品）由 Flyway 自动创建。
-首次启动后台会自动初始化管理员：**admin / admin123**。
+首次启动后台会自动初始化管理员：**admin**（密码来自 `ADMIN_INIT_PASSWORD` 环境变量，未设置则默认 `admin123`）。
 
 > Redis 连接已内置 TCP keepalive（空闲 60s 后内核 15s 探测）+ 连接池 30s 驱逐，
 > 长时间闲置后 Docker/WSL 回收连接不会再导致接口报
@@ -245,3 +264,25 @@ curl -X POST http://localhost:9300/portal-api/pay/notify \
 | 订单关键词筛选 | 订单号/收货人/电话模糊匹配 |
 | 发货物流登记 | 物流公司（下拉选择）+ 运单号 |
 | 后台订单备注 | 仅后台可见，不影响买家视图 |
+
+## 安全审查与版本控制流程
+
+> 每次更新功能后按此流程执行：
+
+1. **安全检查**：扫描代码中是否有硬编码密码/密钥/API Key，确保敏感值通过环境变量注入
+2. **更新功能清单**：在上方「功能完成清单」表中新增条目
+3. **编译验证**：`mvn clean package -DskipTests` + `node vite build` 三端前端
+4. **提交代码**：`git add -A && git commit -m "feat: xxx功能描述"`
+5. **推送到 GitHub**：`git push origin main`
+
+### 环境配置安全规范
+
+| 规范 | 说明 |
+|---|---|
+| `.env` 文件 | 存放实际密码/密钥，已被 `.gitignore` 排除，**不提交到仓库** |
+| `.env.example` 文件 | 环境变量模板（无实际值），提交到仓库供参考 |
+| `application-dev.yml` | 开发环境配置（允许默认密码、开启 Swagger） |
+| `application-prod.yml` | 生产环境配置（关闭 Swagger、JWT_SECRET 必须注入） |
+| `JwtConfig` 启动校验 | 生产 profile 检测到 dev 密钥直接拒绝启动 |
+| 密码加密 | 所有密码使用 BCrypt 哈希存储，源码中不保存明文 |
+| 日志脱敏 | 审计日志自动掩码 password/token 等敏感字段 |

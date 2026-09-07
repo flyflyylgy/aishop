@@ -53,15 +53,19 @@ public class AdminService {
     public void initDefaultAdmin() {
         long count = adminMapper.selectCount(null);
         if (count == 0) {
+            String initPassword = System.getenv("ADMIN_INIT_PASSWORD");
+            if (initPassword == null || initPassword.isBlank()) {
+                initPassword = "admin123";
+            }
             UmsAdmin admin = new UmsAdmin();
             admin.setUsername("admin");
-            admin.setPassword(passwordEncoder.encode("admin123"));
+            admin.setPassword(passwordEncoder.encode(initPassword));
             admin.setNickName("超级管理员");
             admin.setStatus(1);
             adminMapper.insert(admin);
             rbacService.ensureRole(admin.getId(), "SUPER_ADMIN");
             log.warn("==============================================================");
-            log.warn("已初始化默认管理员 admin / admin123，请立即登录并修改密码！");
+            log.warn("已初始化默认管理员 admin（密码来自 ADMIN_INIT_PASSWORD 环境变量），请立即登录并修改密码！");
             log.warn("==============================================================");
         }
     }

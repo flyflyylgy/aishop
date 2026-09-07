@@ -1,7 +1,16 @@
 # 生产 profile：java -jar --spring.profiles.active=prod
-# 关闭 API 文档，避免接口信息泄露
+# 生产环境安全要求：
+# 1. 关闭 API 文档，避免接口信息泄露
+# 2. JWT_SECRET / MYSQL_PASSWORD 必须通过环境变量注入，无默认值 fallback
+# 3. CORS 改为真实前端域名
 springdoc:
   api-docs:
     enabled: false
   swagger-ui:
     enabled: false
+
+shop:
+  jwt:
+    secret: ${JWT_SECRET}
+  cors:
+    allowed-origins: ${CORS_ORIGINS}

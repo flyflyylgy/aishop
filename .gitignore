@@ -10,3 +10,5 @@ dist/
 *.jar
 .env
 *.pid
+portal.log
+admin.log
