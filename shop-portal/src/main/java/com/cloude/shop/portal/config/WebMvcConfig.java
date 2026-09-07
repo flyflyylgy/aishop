@@ -30,7 +30,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(rateLimitInterceptor).addPathPatterns("/**");
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/member/**", "/cart/**", "/order/**", "/pay/**", "/address/**")
-                .excludePathPatterns("/member/login", "/member/register", "/member/captcha", "/pay/notify", "/doc.html",
+                .excludePathPatterns("/member/login", "/member/register", "/member/captcha",
+                        "/member/forgot/**", "/pay/notify", "/doc.html",
                         "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**");
     }
 

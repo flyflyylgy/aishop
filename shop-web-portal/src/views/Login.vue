@@ -19,6 +19,8 @@
         <el-button type="primary" size="large" style="width: 100%" :loading="loading" @click="submit">登 录</el-button>
         <div style="margin-top: 14px; text-align: center; color: #909399">
           还没有账号？<el-link type="primary" @click="$router.push('/register')">立即注册</el-link>
+          <span style="margin: 0 8px">|</span>
+          <el-link type="info" @click="$router.push('/forgot-password')">忘记密码</el-link>
         </div>
       </el-form>
     </el-card>

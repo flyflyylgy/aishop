@@ -2,7 +2,11 @@ package com.cloude.shop.portal.controller;
 
 import com.cloude.shop.common.annotation.OpLog;
 import com.cloude.shop.common.api.CommonResult;
+import com.cloude.shop.common.component.UserContext;
+import com.cloude.shop.service.dto.ForgotPasswordParam;
 import com.cloude.shop.service.dto.MemberVO;
+import com.cloude.shop.service.dto.ProfileUpdateParam;
+import com.cloude.shop.service.dto.ResetPasswordParam;
 import com.cloude.shop.service.dto.TokenVO;
 import com.cloude.shop.service.service.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -59,6 +63,30 @@ public class MemberController {
     @PostMapping("/logout")
     public CommonResult<Void> logout(HttpServletRequest request) {
         memberService.logout(request.getHeader("Authorization"));
+        return CommonResult.success();
+    }
+
+    @Operation(summary = "修改个人资料（昵称/手机/头像）")
+    @OpLog("MEMBER_PROFILE_UPDATE")
+    @PostMapping("/profile")
+    public CommonResult<Void> updateProfile(@Valid @RequestBody ProfileUpdateParam param) {
+        memberService.updateProfile(UserContext.getUserId(), param);
+        return CommonResult.success();
+    }
+
+    // ==================== 忘记密码（免登录） ====================
+
+    @Operation(summary = "发送重置密码验证码（演示环境返回验证码）")
+    @PostMapping("/forgot/send-code")
+    public CommonResult<String> sendResetCode(@Valid @RequestBody ForgotPasswordParam param) {
+        String code = memberService.sendResetCode(param.getUsername());
+        return CommonResult.success(code);
+    }
+
+    @Operation(summary = "验证码重置密码")
+    @PostMapping("/forgot/reset-password")
+    public CommonResult<Void> resetPassword(@Valid @RequestBody ResetPasswordParam param) {
+        memberService.resetPassword(param.getUsername(), param.getCode(), param.getNewPassword());
         return CommonResult.success();
     }
 

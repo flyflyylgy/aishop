@@ -31,6 +31,7 @@
     </van-cell-group>
 
     <van-cell-group inset style="margin-top: 12px">
+      <van-cell title="个人资料" icon="user-o" is-link @click="$router.push('/profile')" />
       <van-cell title="热销推荐" icon="fire-o" is-link @click="$router.push('/')" />
       <van-cell title="关于商城" icon="info-o" is-link
         @click="showAbout = true" />

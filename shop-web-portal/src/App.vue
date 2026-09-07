@@ -81,6 +81,7 @@ function doSearch() {
 }
 
 function onUserCommand(cmd) {
+  if (cmd === 'profile') router.push('/profile')
   if (cmd === 'orders') router.push('/orders')
   if (cmd === 'addresses') router.push('/addresses')
   if (cmd === 'logout') { user.logout(); router.push('/login') }

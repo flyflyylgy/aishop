@@ -13,6 +13,7 @@ import com.cloude.shop.mapper.mapper.UmsMemberMapper;
 import com.cloude.shop.service.component.CaptchaService;
 import com.cloude.shop.service.component.LoginGuard;
 import com.cloude.shop.service.dto.MemberVO;
+import com.cloude.shop.service.dto.ProfileUpdateParam;
 import com.cloude.shop.service.dto.TokenVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -24,11 +25,12 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * 会员服务（注册/登录/登出/信息 + 后台会员管理）
+ * 会员服务（注册/登录/登出/信息/个人资料/忘记密码 + 后台会员管理）
  */
 @Service
 @RequiredArgsConstructor
@@ -44,6 +46,9 @@ public class MemberService {
     private final CaptchaService captchaService;
     private final LoginGuard loginGuard;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    /** 重置密码验证码 Redis key 前缀 */
+    private static final String RESET_CODE_PREFIX = "shop:resetpwd:";
 
     public void register(String username, String password, String nickname) {
         if (!STRONG_PASSWORD.matcher(password).matches()) {
@@ -91,6 +96,97 @@ public class MemberService {
     public void logout(String token) {
         if (token != null && token.startsWith("Bearer ")) {
             stringRedisTemplate.delete(RedisKeyConstant.MEMBER_TOKEN + token.substring(7));
+        }
+    }
+
+    // ==================== 个人资料 ====================
+
+    /**
+     * 修改个人资料（昵称/手机/头像），只更新非 null 字段
+     */
+    public void updateProfile(Long memberId, ProfileUpdateParam param) {
+        UmsMember member = memberMapper.selectById(memberId);
+        if (member == null) {
+            throw new BusinessException("会员不存在");
+        }
+        UmsMember update = new UmsMember();
+        update.setId(memberId);
+        if (param.getNickname() != null && !param.getNickname().isBlank()) {
+            update.setNickname(param.getNickname().trim());
+        }
+        if (param.getPhone() != null && !param.getPhone().isBlank()) {
+            // 手机号唯一检查
+            long count = memberMapper.selectCount(new LambdaQueryWrapper<UmsMember>()
+                    .eq(UmsMember::getPhone, param.getPhone().trim())
+                    .ne(UmsMember::getId, memberId));
+            if (count > 0) {
+                throw new BusinessException("该手机号已被其他账号绑定");
+            }
+            update.setPhone(param.getPhone().trim());
+        }
+        if (param.getIcon() != null) {
+            update.setIcon(param.getIcon());
+        }
+        memberMapper.updateById(update);
+    }
+
+    // ==================== 忘记密码 ====================
+
+    /**
+     * 发送重置密码验证码（演示环境：不实际发短信，返回验证码供测试）
+     */
+    public String sendResetCode(String username) {
+        UmsMember member = memberMapper.selectOne(new LambdaQueryWrapper<UmsMember>()
+                .eq(UmsMember::getUsername, username));
+        if (member == null) {
+            throw new BusinessException("用户名不存在");
+        }
+        if (member.getPhone() == null || member.getPhone().isBlank()) {
+            throw new BusinessException("该账号未绑定手机号，无法找回密码，请联系客服");
+        }
+        // 生成 6 位数字验证码
+        String code = String.valueOf(ThreadLocalRandom.current().nextInt(100000, 1000000));
+        stringRedisTemplate.opsForValue().set(RESET_CODE_PREFIX + username, code,
+                Duration.ofMinutes(10));
+        // 演示环境返回验证码（生产环境应发短信）
+        return code;
+    }
+
+    /**
+     * 验证码重置密码
+     */
+    public void resetPassword(String username, String code, String newPassword) {
+        String redisKey = RESET_CODE_PREFIX + username;
+        String cached = stringRedisTemplate.opsForValue().get(redisKey);
+        if (cached == null) {
+            throw new BusinessException("验证码已失效，请重新获取");
+        }
+        if (!cached.equals(code)) {
+            throw new BusinessException("验证码错误");
+        }
+        if (!STRONG_PASSWORD.matcher(newPassword).matches()) {
+            throw new BusinessException("密码需 8-32 位且包含字母和数字");
+        }
+        UmsMember member = memberMapper.selectOne(new LambdaQueryWrapper<UmsMember>()
+                .eq(UmsMember::getUsername, username));
+        if (member == null) {
+            throw new BusinessException("用户名不存在");
+        }
+        UmsMember update = new UmsMember();
+        update.setId(member.getId());
+        update.setPassword(passwordEncoder.encode(newPassword));
+        memberMapper.updateById(update);
+        // 重置成功后删除验证码 + 吊销旧 token
+        stringRedisTemplate.delete(redisKey);
+        String prefix = RedisKeyConstant.MEMBER_TOKEN;
+        var keys = stringRedisTemplate.keys(prefix + "*");
+        if (keys != null) {
+            for (String k : keys) {
+                String v = stringRedisTemplate.opsForValue().get(k);
+                if (username.equals(v)) {
+                    stringRedisTemplate.delete(k);
+                }
+            }
         }
     }
 

@@ -37,6 +37,10 @@ request.interceptors.response.use(
 export const captcha = () => request.get('/member/captcha')
 export const register = data => request.post('/member/register', data)
 export const login = data => request.post('/member/login', data)
+export const memberInfo = () => request.get('/member/info')
+export const updateProfile = data => request.post('/member/profile', data)
+export const sendResetCode = data => request.post('/member/forgot/send-code', data)
+export const resetPassword = data => request.post('/member/forgot/reset-password', data)
 
 // ---------- 商品 ----------
 export const productPage = params => request.get('/product/page', { params })

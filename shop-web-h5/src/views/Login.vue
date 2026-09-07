@@ -22,8 +22,9 @@
       </van-cell-group>
       <div style="margin: 20px 16px">
         <van-button round block type="danger" native-type="submit" :loading="loading">登 录</van-button>
-        <div style="text-align: center; margin-top: 14px; font-size: 13px; color: #969799">
-          还没有账号？<span style="color: var(--brand)" @click="$router.push('/register')">立即注册</span>
+        <div style="display: flex; justify-content: space-between; margin-top: 14px; font-size: 13px; color: #969799">
+          <span style="color: var(--brand)" @click="$router.push('/forgot-password')">忘记密码</span>
+          <span>还没有账号？<span style="color: var(--brand)" @click="$router.push('/register')">立即注册</span></span>
         </div>
       </div>
     </van-form>
