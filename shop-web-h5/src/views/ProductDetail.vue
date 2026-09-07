@@ -23,6 +23,30 @@
       <div style="padding: 0 16px 14px; font-size: 13px; line-height: 1.6" v-html="product.detailHtml"></div>
     </van-cell-group>
 
+    <!-- 评价区 -->
+    <van-cell-group inset style="margin-top: 10px">
+      <van-cell>
+        <template #title>
+          <span style="font-weight: 600">商品评价</span>
+          <span v-if="reviewStatsData" style="color: #969799; font-size: 12px; margin-left: 8px">
+            {{ reviewStatsData.count }}条 · 均分{{ reviewStatsData.avgRating }}
+          </span>
+        </template>
+      </van-cell>
+      <van-empty v-if="reviews.length === 0" description="暂无评价" image-size="60" />
+      <div v-for="rv in reviews" :key="rv.id" style="padding: 10px 16px; border-top: 1px solid #f2f3f5">
+        <div style="display: flex; align-items: center; gap: 6px">
+          <van-rate :model-value="rv.rating" readonly size="12" />
+          <span style="font-size: 12px; color: #969799">{{ rv.memberName }}</span>
+          <span style="font-size: 11px; color: #c8c9cc; margin-left: auto">{{ fmt(rv.createTime) }}</span>
+        </div>
+        <p style="margin: 6px 0 0; font-size: 13px; color: #323233">{{ rv.content }}</p>
+      </div>
+      <van-cell v-if="reviewTotal > reviewPageSize" style="text-align: center">
+        <van-button plain size="small" @click="loadMoreReviews">查看更多</van-button>
+      </van-cell>
+    </van-cell-group>
+
     <!-- 数量选择弹层 -->
     <van-action-sheet v-model:show="sheetShow" :title="sheetMode === 'cart' ? '加入购物车' : '立即购买'">
       <div style="padding: 16px">
@@ -57,7 +81,7 @@
 import { inject, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showSuccessToast } from 'vant'
-import { productDetail, cartAdd } from '../api'
+import { productDetail, cartAdd, reviewPage, reviewStats } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -69,6 +93,29 @@ const sheetMode = ref('cart')
 const cartBadge = ref(localStorage.getItem('token') ? '' : '')
 
 const money = v => Number(v ?? 0).toFixed(2)
+
+// 评价
+const reviews = ref([])
+const reviewStatsData = ref(null)
+const reviewTotal = ref(0)
+const reviewPageNum = ref(1)
+const reviewPageSize = ref(5)
+const fmt = t => t ? String(t).replace('T', ' ').slice(0, 10) : ''
+
+async function loadReviews() {
+  const page = await reviewPage(route.params.id, { pageNum: reviewPageNum.value, pageSize: reviewPageSize.value })
+  reviews.value = page.records || []
+  reviewTotal.value = Number(page.total || 0)
+}
+
+function loadMoreReviews() {
+  reviewPageNum.value += 1
+  reviewPage(route.params.id, { pageNum: reviewPageNum.value, pageSize: reviewPageSize.value })
+    .then(page => {
+      reviews.value = reviews.value.concat(page.records || [])
+      reviewTotal.value = Number(page.total || 0)
+    })
+}
 
 function openSheet(mode) {
   if (!localStorage.getItem('token')) {
@@ -92,6 +139,8 @@ async function confirmSheet() {
 
 onMounted(async () => {
   product.value = await productDetail(route.params.id)
+  loadReviews()
+  reviewStatsData.value = await reviewStats(route.params.id).catch(() => null)
   try {
     if (localStorage.getItem('token')) {
       const { cartList } = await import('../api')

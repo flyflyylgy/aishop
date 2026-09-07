@@ -76,3 +76,10 @@ export const rolePermissionIds = roleId => request.get('/role/permissions', { pa
 export const saveRolePermissions = (roleId, permissionIds) => request.post('/role/permissions', { roleId, permissionIds })
 export const logPage = params => request.get('/log/page', { params })
 export const memberLogPage = params => request.get('/member-log/page', { params })
+
+// ---------- 评价管理 ----------
+export const reviewPage = params => request.get('/review-refund/review/page', { params })
+
+// ---------- 退款审批 ----------
+export const refundPage = params => request.get('/review-refund/refund/page', { params })
+export const refundHandle = (id, data) => request.post(`/review-refund/refund/handle/${id}`, data)

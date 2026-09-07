@@ -76,3 +76,12 @@ export const addressSetDefault = id => request.post(`/address/default/${id}`)
 // ---------- 支付（模拟通道） ----------
 export const payCreate = orderNo => request.post(`/pay/create/${orderNo}`)
 export const payNotifyMock = data => request.post('/pay/notify', data)
+
+// ---------- 评价 ----------
+export const reviewCreate = data => request.post('/review', data)
+export const reviewPage = (productId, params) => request.get(`/review/product/${productId}`, { params })
+export const reviewStats = productId => request.get(`/review/product/${productId}/stats`)
+
+// ---------- 退款 ----------
+export const refundApply = data => request.post('/review/refund/apply', data)
+export const myRefunds = params => request.get('/review/refund/my', { params })

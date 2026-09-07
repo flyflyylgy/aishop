@@ -30,12 +30,14 @@
       </div>
       <div class="order-foot">
         <span>实付：<span class="price" style="font-size: 16px">¥{{ money(o.payAmount) }}</span></span>
-        <div style="display: flex; gap: 8px">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end">
           <template v-if="o.status === 0">
             <van-button plain round size="small" @click="cancel(o)">取消订单</van-button>
             <van-button round size="small" type="danger" @click="pay(o)">去支付</van-button>
           </template>
           <van-button v-if="o.status === 2" round size="small" type="success" @click="confirm(o)">确认收货</van-button>
+          <van-button v-if="o.status === 3" round size="small" type="warning" @click="openReview(o)">评价</van-button>
+          <van-button v-if="[1,2,3].includes(o.status)" plain round size="small" @click="openRefund(o)">退款</van-button>
         </div>
       </div>
     </div>
@@ -49,14 +51,63 @@
         <div style="font-size: 11px; color: #969799; margin-top: 6px; padding: 0 30px">演示环境：确认后模拟第三方支付成功并回调商城</div>
       </div>
     </van-dialog>
+
+    <!-- 评价弹窗 -->
+    <van-popup v-model:show="reviewShow" round position="bottom" :style="{ height: '60%' }">
+      <div style="padding: 16px">
+        <h3 style="margin: 0 0 12px">发表评价</h3>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px">
+          <span style="color: #646566; font-size: 14px">评分</span>
+          <van-rate v-model="reviewForm.rating" />
+        </div>
+        <van-field
+          v-model="reviewForm.content"
+          label="评价内容"
+          type="textarea"
+          placeholder="说说商品如何吧～"
+          :maxlength="500"
+          show-word-limit
+          rows="4"
+          autosize
+        />
+        <van-button type="primary" block round style="margin-top: 16px" :loading="reviewing" @click="submitReview">
+          提交评价
+        </van-button>
+      </div>
+    </van-popup>
+
+    <!-- 退款弹窗 -->
+    <van-popup v-model:show="refundShow" round position="bottom" :style="{ height: '50%' }">
+      <div style="padding: 16px">
+        <h3 style="margin: 0 0 12px">申请退款</h3>
+        <van-cell title="订单号" :value="refundOrder?.orderNo" />
+        <van-cell title="退款金额">
+          <template #value><span class="price">¥{{ money(refundOrder?.payAmount) }}</span></template>
+        </van-cell>
+        <van-field
+          v-model="refundForm.reason"
+          label="退款原因"
+          type="textarea"
+          placeholder="请说明退款原因"
+          :maxlength="200"
+          show-word-limit
+          rows="3"
+          autosize
+          style="margin-top: 10px"
+        />
+        <van-button type="danger" block round style="margin-top: 16px" :loading="refunding" @click="submitRefund">
+          提交申请
+        </van-button>
+      </div>
+    </van-popup>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { showSuccessToast } from 'vant'
-import { orderPage, orderCancel, orderConfirm, payCreate, payNotifyMock } from '../api'
+import { orderPage, orderCancel, orderConfirm, payCreate, payNotifyMock, reviewCreate, refundApply } from '../api'
 
 const route = useRoute()
 const orders = ref([])
@@ -100,6 +151,67 @@ async function doPay() {
   })
   showSuccessToast('支付成功！')
   load()
+}
+
+// 评价
+const reviewShow = ref(false)
+const reviewing = ref(false)
+const reviewOrder = ref(null)
+const reviewForm = reactive({ rating: 5, content: '' })
+
+function openReview(o) {
+  reviewOrder.value = o
+  reviewForm.rating = 5
+  reviewForm.content = ''
+  reviewShow.value = true
+}
+
+async function submitReview() {
+  if (!reviewForm.content?.trim()) {
+    return showSuccessToast('请填写评价内容')
+  }
+  reviewing.value = true
+  try {
+    await reviewCreate({
+      orderId: reviewOrder.value.id,
+      productId: reviewOrder.value.items?.[0]?.productId,
+      rating: reviewForm.rating,
+      content: reviewForm.content.trim()
+    })
+    showSuccessToast('评价已提交')
+    reviewShow.value = false
+  } finally {
+    reviewing.value = false
+  }
+}
+
+// 退款
+const refundShow = ref(false)
+const refunding = ref(false)
+const refundOrder = ref(null)
+const refundForm = reactive({ reason: '' })
+
+function openRefund(o) {
+  refundOrder.value = o
+  refundForm.reason = ''
+  refundShow.value = true
+}
+
+async function submitRefund() {
+  if (!refundForm.reason?.trim()) {
+    return showSuccessToast('请填写退款原因')
+  }
+  refunding.value = true
+  try {
+    await refundApply({
+      orderId: refundOrder.value.id,
+      reason: refundForm.reason.trim()
+    })
+    showSuccessToast('退款申请已提交')
+    refundShow.value = false
+  } finally {
+    refunding.value = false
+  }
 }
 
 onMounted(async () => {

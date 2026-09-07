@@ -40,13 +40,15 @@
         <el-table-column label="下单时间" prop="createTime" width="170">
           <template #default="{ row }">{{ fmt(row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="230" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <template v-if="row.status === 0">
               <el-button type="danger" size="small" @click="pay(row)">去支付</el-button>
               <el-button size="small" @click="cancel(row)">取消</el-button>
             </template>
             <el-button v-if="row.status === 2" type="success" size="small" @click="confirm(row)">确认收货</el-button>
+            <el-button v-if="row.status === 3" type="warning" size="small" @click="openReview(row)">评价</el-button>
+            <el-button v-if="[1,2,3].includes(row.status)" size="small" @click="openRefund(row)">退款</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -70,6 +72,44 @@
         <el-button type="success" :loading="paying" @click="doPay">模拟支付成功</el-button>
       </template>
     </el-dialog>
+
+    <!-- 评价弹窗 -->
+    <el-dialog v-model="reviewDialog" title="发表评价" width="500px" align-center>
+      <el-form label-width="80px">
+        <el-form-item label="商品">
+          <span>{{ reviewOrder?.items?.[0]?.productName }}</span>
+        </el-form-item>
+        <el-form-item label="评分">
+          <el-rate v-model="reviewForm.rating" />
+        </el-form-item>
+        <el-form-item label="评价内容">
+          <el-input v-model="reviewForm.content" type="textarea" :rows="4" maxlength="500" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="reviewDialog = false">取消</el-button>
+        <el-button type="primary" :loading="reviewing" @click="submitReview">提交评价</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 退款弹窗 -->
+    <el-dialog v-model="refundDialog" title="申请退款" width="500px" align-center>
+      <el-form label-width="80px">
+        <el-form-item label="订单号">
+          <span>{{ refundOrder?.orderNo }}</span>
+        </el-form-item>
+        <el-form-item label="退款金额">
+          <span class="price">¥{{ money(refundOrder?.payAmount) }}</span>
+        </el-form-item>
+        <el-form-item label="退款原因">
+          <el-input v-model="refundForm.reason" type="textarea" :rows="4" maxlength="200" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="refundDialog = false">取消</el-button>
+        <el-button type="danger" :loading="refunding" @click="submitRefund">提交申请</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -77,7 +117,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { orderPage, orderCancel, orderConfirm, payCreate, payNotifyMock } from '../api'
+import { orderPage, orderCancel, orderConfirm, payCreate, payNotifyMock, reviewCreate, refundApply } from '../api'
 
 const route = useRoute()
 const orders = ref([])
@@ -135,6 +175,69 @@ async function doPay() {
     load()
   } finally {
     paying.value = false
+  }
+}
+
+// 评价
+const reviewDialog = ref(false)
+const reviewOrder = ref(null)
+const reviewing = ref(false)
+const reviewForm = reactive({ rating: 5, content: '' })
+
+function openReview(row) {
+  reviewOrder.value = row
+  reviewForm.rating = 5
+  reviewForm.content = ''
+  reviewDialog.value = true
+}
+
+async function submitReview() {
+  if (!reviewForm.content?.trim()) {
+    ElMessage.warning('请填写评价内容')
+    return
+  }
+  reviewing.value = true
+  try {
+    await reviewCreate({
+      orderId: reviewOrder.value.id,
+      productId: reviewOrder.value.items?.[0]?.productId,
+      rating: reviewForm.rating,
+      content: reviewForm.content.trim()
+    })
+    ElMessage.success('评价已提交')
+    reviewDialog.value = false
+  } finally {
+    reviewing.value = false
+  }
+}
+
+// 退款
+const refundDialog = ref(false)
+const refundOrder = ref(null)
+const refunding = ref(false)
+const refundForm = reactive({ reason: '' })
+
+function openRefund(row) {
+  refundOrder.value = row
+  refundForm.reason = ''
+  refundDialog.value = true
+}
+
+async function submitRefund() {
+  if (!refundForm.reason?.trim()) {
+    ElMessage.warning('请填写退款原因')
+    return
+  }
+  refunding.value = true
+  try {
+    await refundApply({
+      orderId: refundOrder.value.id,
+      reason: refundForm.reason.trim()
+    })
+    ElMessage.success('退款申请已提交，请等待审核')
+    refundDialog.value = false
+  } finally {
+    refunding.value = false
   }
 }
 

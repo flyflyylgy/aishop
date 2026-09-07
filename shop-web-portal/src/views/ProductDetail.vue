@@ -41,6 +41,34 @@
       <h3 style="margin-bottom: 12px">商品详情</h3>
       <div v-html="product.detailHtml" class="detail-html"></div>
     </el-card>
+
+    <!-- 评价区 -->
+    <el-card style="margin-top: 20px">
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <h3>商品评价</h3>
+          <span v-if="reviewStatsData" style="color: #909399; font-size: 14px">
+            {{ reviewStatsData.count }} 条评价 · 均分 {{ reviewStatsData.avgRating }}
+          </span>
+        </div>
+      </template>
+
+      <div v-if="reviews.length === 0" style="text-align: center; color: #c0c4cc; padding: 20px">暂无评价</div>
+
+      <div v-for="rv in reviews" :key="rv.id" style="padding: 12px 0; border-bottom: 1px solid #f0f0f0">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <el-rate :model-value="rv.rating" disabled size="small" />
+          <span style="color: #909399; font-size: 13px">{{ rv.memberName }}</span>
+          <span style="color: #c0c4cc; font-size: 12px; margin-left: auto">{{ fmt(rv.createTime) }}</span>
+        </div>
+        <p style="margin: 8px 0 0; color: #606266">{{ rv.content }}</p>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 16px" v-if="reviewTotal > reviewPageSize">
+        <el-pagination background layout="prev, pager, next" :total="reviewTotal" :page-size="reviewPageSize"
+          :current-page="reviewPageNum" @current-change="p => { reviewPageNum = p; loadReviews() }" />
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -49,7 +77,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ShoppingCart } from '@element-plus/icons-vue'
-import { productDetail, cartAdd } from '../api'
+import { productDetail, cartAdd, reviewPage, reviewStats } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,9 +85,25 @@ const product = ref(null)
 const quantity = ref(1)
 const money = v => Number(v ?? 0).toFixed(2)
 
+// 评价
+const reviews = ref([])
+const reviewStatsData = ref(null)
+const reviewTotal = ref(0)
+const reviewPageNum = ref(1)
+const reviewPageSize = ref(5)
+const fmt = t => t ? String(t).replace('T', ' ').slice(0, 10) : ''
+
+async function loadReviews() {
+  const page = await reviewPage(route.params.id, { pageNum: reviewPageNum.value, pageSize: reviewPageSize.value })
+  reviews.value = page.records || []
+  reviewTotal.value = Number(page.total || 0)
+}
+
 onMounted(async () => {
   product.value = await productDetail(route.params.id)
   quantity.value = 1
+  loadReviews()
+  reviewStatsData.value = await reviewStats(route.params.id)
 })
 
 async function addToCart() {

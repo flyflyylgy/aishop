@@ -32,4 +32,6 @@ public final class PermissionCode {
     public static final String MEMBER_LIST = "shop:member:list";
     public static final String MEMBER_STATUS = "shop:member:status";
     public static final String ORDER_REMARK = "shop:order:remark";
+    public static final String REVIEW_LIST = "shop:review:list";
+    public static final String REFUND_HANDLE = "shop:refund:handle";
 }
