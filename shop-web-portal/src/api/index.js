@@ -64,3 +64,10 @@ export const orderConfirm = orderId => request.post(`/order/confirm/${orderId}`)
 export const payCreate = orderNo => request.post(`/pay/create/${orderNo}`)
 // 模拟第三方支付平台向商城发起异步回调（演示闭环，生产环境由支付服务器调用）
 export const payNotifyMock = data => request.post('/pay/notify', data)
+
+// ---------- 收货地址 ----------
+export const addressList = () => request.get('/address/list')
+export const addressCreate = data => request.post('/address/create', data)
+export const addressUpdate = (id, data) => request.post(`/address/update/${id}`, data)
+export const addressDelete = id => request.post(`/address/delete/${id}`)
+export const addressSetDefault = id => request.post(`/address/default/${id}`)

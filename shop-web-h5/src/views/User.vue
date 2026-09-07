@@ -21,6 +21,7 @@
     <!-- 订单入口 -->
     <van-cell-group inset style="margin-top: 12px">
       <van-cell title="我的订单" icon="orders-o" is-link @click="goOrders" />
+      <van-cell title="收货地址" icon="location-o" is-link @click="$router.push('/addresses')" />
       <van-grid :column-num="4" :border="false" style="padding: 8px 0 12px">
         <van-grid-item icon="credit-pay" text="待付款" @click="goOrders(0)" />
         <van-grid-item icon="logistics" text="已发货" @click="goOrders(2)" />

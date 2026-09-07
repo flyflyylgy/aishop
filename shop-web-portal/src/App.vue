@@ -27,6 +27,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="orders">我的订单</el-dropdown-item>
+                  <el-dropdown-item command="addresses">收货地址</el-dropdown-item>
                   <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -81,6 +82,7 @@ function doSearch() {
 
 function onUserCommand(cmd) {
   if (cmd === 'orders') router.push('/orders')
+  if (cmd === 'addresses') router.push('/addresses')
   if (cmd === 'logout') { user.logout(); router.push('/login') }
 }
 

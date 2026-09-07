@@ -1,4 +1,4 @@
-# Cloude Shop — 企业级 Java 购物商城
+﻿# Cloude Shop — 企业级 Java 购物商城
 
 参考 GitHub 主流开源商城（[mall](https://github.com/macrozheng/mall) 83.7k★、[litemall](https://github.com/linlinjava/litemall) 20.3k★、[newbee-mall](https://github.com/newbee-ltd/newbee-mall) 11.6k★、[EasyMall](https://github.com/yunluoxincheng/EasyMall)）的最佳实践，构建的单体多模块企业级电商后端。
 
@@ -23,8 +23,8 @@ cloude-shop
 ├── shop-common      通用模块：统一响应/全局异常/JWT/拦截器/订单状态枚举
 ├── shop-mapper      实体 + Mapper（含库存三态 CAS、订单状态 CAS SQL）+ Flyway 脚本
 ├── shop-service     核心业务：订单状态机/库存服务/支付幂等/MQ/购物车/商品
-├── shop-admin       后台管理服务（演示端口 9301）/admin-api
-└── shop-portal      前台商城服务（演示端口 9300）/portal-api（含 Flyway 迁移）
+├── shop-admin       后台管理服务（演示端口 8081）/admin-api
+└── shop-portal      前台商城服务（默认端口 8080）/portal-api（含 Flyway 迁移）
 ```
 
 ## 企业级核心设计
@@ -47,6 +47,7 @@ cloude-shop
 | **管理员管理闭环** | 管理员 CRUD、重置密码、分配角色（全量覆盖 + 删权限缓存）、角色权限勾选保存（实时生效）、权限点列表 |
 | **会员管理增强** | 会员分页（含订单数/累计消费统计）、封禁/解封（封禁即吊销 token） |
 | **订单管理增强** | 订单详情抽屉（物流信息/明细/后台备注）、订单号/收货人/电话关键词筛选、发货登记物流公司+运单号、后台订单备注 |
+| **收货地址簿** | 地址 CRUD（每人上限 20 条）+ 唯一默认地址（增删自动维护）+ 下单 addressId 自动填充收货人；PC/H5 双端结算页地址选择 |
 
 ## 快速启动
 
@@ -112,26 +113,26 @@ java -jar shop-portal/target/shop-portal-1.0.0.jar --spring.profiles.active=dev
 ### 4. 启动前端（Vue 3 + Vite + Element Plus）
 
 ```bash
-# 商城前台（http://localhost:5173，代理 /portal-api → 9300）
+# 商城前台（http://localhost:5173，代理 /portal-api → 8080）
 cd shop-web-portal && npm install && npm run dev
 
-# 商城 H5 移动端（http://localhost:5175，代理 /portal-api → 9300）
+# 商城 H5 移动端（http://localhost:5175，代理 /portal-api → 8080）
 cd shop-web-h5 && npm install && npm run dev
 
-# 管理后台（http://localhost:5174，代理 /admin-api → 9301）
+# 管理后台（http://localhost:5174，代理 /admin-api → 8081）
 cd shop-web-admin && npm install && npm run dev
 ```
 
-- 前台功能：注册登录、首页（分类导航/搜索/热销榜）、商品详情、购物车（勾选/数量/清空）、结算下单（自动生成幂等键）、订单列表（状态筛选）、模拟支付闭环、确认收货、超时自动关单演示。
+- 前台功能：注册登录、首页（分类导航/搜索/热销榜）、商品详情、购物车（勾选/数量/清空）、收货地址簿（CRUD/默认地址/结算页选择）、结算下单（自动生成幂等键）、订单列表（状态筛选）、模拟支付闭环、确认收货、超时自动关单演示。
 - H5 功能：底部 Tabbar（首页/分类/购物车/我的）、轮播 Banner、分类宫格与侧边分类页、商品详情 GoodsAction 数量弹层、购物车滑动删除、结算/订单/模拟支付，复用 portal 全部 API。
 - 后台功能：仪表盘统计、商品管理（CRUD/上下架）、分类管理、订单管理（发货/详情/筛选/物流单号/备注）、会员管理（分页/封禁解封）、管理员管理（CRUD/重置密码/分配角色）、角色权限配置（勾选权限点保存）、管理审计日志、会员操作日志、修改密码。
-- 后端端口不同时（如演示用 9300/9301），同步修改各 `vite.config.js` 的 proxy 目标即可（注意用 `127.0.0.1` 而非 `localhost`，避免 Node 17+ IPv6 解析问题）；生产构建 `npm run build` 产物在 `dist/`。
+- 后端端口不同时（如演示用 8080/8081），同步修改各 `vite.config.js` 的 proxy 目标即可（注意用 `127.0.0.1` 而非 `localhost`，避免 Node 17+ IPv6 解析问题）；生产构建 `npm run build` 产物在 `dist/`。
 - 演示账号：前台 `smoke01 / 123456`（或自行注册），后台 `admin / admin123`。
 
 ### 5. 接口文档
 
-- 前台：http://localhost:9300/portal-api/doc.html
-- 后台：http://localhost:9301/admin-api/doc.html
+- 前台：http://localhost:8080/portal-api/doc.html
+- 后台：http://localhost:8081/admin-api/doc.html
 
 ## 核心接口清单
 
@@ -177,15 +178,15 @@ cd shop-web-admin && npm install && npm run dev
 
 ```bash
 # 1. 注册登录
-curl -X POST http://localhost:9300/portal-api/member/register \
+curl -X POST http://localhost:8080/portal-api/member/register \
   -H "Content-Type: application/json" \
   -d '{"username":"test01","password":"123456","nickname":"测试用户"}'
-TOKEN=$(curl -s -X POST http://localhost:9300/portal-api/member/login \
+TOKEN=$(curl -s -X POST http://localhost:8080/portal-api/member/login \
   -H "Content-Type: application/json" \
   -d '{"username":"test01","password":"123456"}' | jq -r .data.token)
 
 # 2. 下单（Idempotency-Key 由客户端生成 UUID，10 分钟内防重复提交）
-curl -X POST http://localhost:9300/portal-api/order/create \
+curl -X POST http://localhost:8080/portal-api/order/create \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{"items":[{"productId":1,"quantity":2}],"receiverName":"张三","receiverPhone":"13800138000","receiverAddr":"上海市浦东新区xx路1号"}'
@@ -194,9 +195,9 @@ curl -X POST http://localhost:9300/portal-api/order/create \
 #           详情 GET /portal-api/product/1    热销 GET /portal-api/product/hot?limit=6
 
 # 3. 创建支付单 → 模拟回调（幂等）
-curl -X POST http://localhost:9300/portal-api/pay/create/ORDER_NO \
+curl -X POST http://localhost:8080/portal-api/pay/create/ORDER_NO \
   -H "Authorization: Bearer $TOKEN"
-curl -X POST http://localhost:9300/portal-api/pay/notify \
+curl -X POST http://localhost:8080/portal-api/pay/notify \
   -H "Content-Type: application/json" \
   -d '{"payNo":"PAY001","orderNo":"ORDER_NO","amount":9998.00,"success":true}'
 ```

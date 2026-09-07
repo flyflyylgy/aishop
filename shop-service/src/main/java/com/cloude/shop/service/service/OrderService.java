@@ -10,6 +10,7 @@ import com.cloude.shop.mapper.entity.OmsOrder;
 import com.cloude.shop.mapper.entity.OmsOrderItem;
 import com.cloude.shop.mapper.entity.OmsCartItem;
 import com.cloude.shop.mapper.entity.PmsProduct;
+import com.cloude.shop.mapper.entity.UmsMemberAddress;
 import com.cloude.shop.mapper.mapper.OmsCartItemMapper;
 import com.cloude.shop.mapper.mapper.OmsOrderItemMapper;
 import com.cloude.shop.mapper.mapper.OmsOrderMapper;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -56,6 +58,7 @@ public class OrderService {
     private final OmsCartItemMapper cartItemMapper;
     private final StockService stockService;
     private final RabbitTemplate rabbitTemplate;
+    private final MemberAddressService memberAddressService;
 
     /**
      * 创建订单（下单）
@@ -65,6 +68,15 @@ public class OrderService {
         // 1. 逐项校验商品并锁库存（CAS，不足即抛异常回滚）
         if (param.getItems() == null || param.getItems().isEmpty()) {
             throw new BusinessException("订单商品列表不能为空");
+        }
+        // 收货人信息：优先使用地址簿，否则校验手填字段
+        UmsMemberAddress address = null;
+        if (param.getAddressId() != null) {
+            address = memberAddressService.getOwned(memberId, param.getAddressId());
+        } else if (!StringUtils.hasText(param.getReceiverName())
+                || !StringUtils.hasText(param.getReceiverPhone())
+                || !StringUtils.hasText(param.getReceiverAddr())) {
+            throw new BusinessException("请选择收货地址或填写完整收货人信息");
         }
         BigDecimal totalAmount = BigDecimal.ZERO;
         Map<Long, PmsProduct> productMap = productMapper.selectBatchIds(
@@ -89,9 +101,9 @@ public class OrderService {
         order.setStatus(OrderStatus.PENDING_PAYMENT.getCode());
         order.setTotalAmount(totalAmount);
         order.setPayAmount(totalAmount);
-        order.setReceiverName(param.getReceiverName());
-        order.setReceiverPhone(param.getReceiverPhone());
-        order.setReceiverAddr(param.getReceiverAddr());
+        order.setReceiverName(address != null ? address.getReceiverName() : param.getReceiverName());
+        order.setReceiverPhone(address != null ? address.getReceiverPhone() : param.getReceiverPhone());
+        order.setReceiverAddr(address != null ? address.getReceiverAddr() : param.getReceiverAddr());
         order.setNote(param.getNote());
         orderMapper.insert(order);
 

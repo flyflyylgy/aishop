@@ -21,9 +21,24 @@ ums_member ──── oms_cart_item ──── pms_product ──── pms_
 
 ums_admin_log（独立审计）
 ums_member_log（独立审计）
+ums_member_address（独立地址簿）
 ```
 
 ## 表结构明细
+
+### ums_member_address（会员收货地址，V6）
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | BIGINT PK | 主键 |
+| member_id | BIGINT | 会员 ID（索引） |
+| receiver_name | VARCHAR(64) | 收货人姓名 |
+| receiver_phone | VARCHAR(20) | 联系电话（后端校验 `^1[3-9]\d{9}$`） |
+| receiver_addr | VARCHAR(255) | 收货地址 |
+| is_default | TINYINT | 0-普通 1-默认（每会员唯一，新增/删除自动维护） |
+| delete_flag | TINYINT | 逻辑删除 |
+| create_time / update_time | DATETIME | 时间戳 |
+
+业务约束：每人上限 20 条；首条地址自动设默认；删除默认地址自动提升最近更新的一条；下单传 addressId 由服务端校验归属后填充收货人。
 
 ### ums_admin（后台管理员）
 

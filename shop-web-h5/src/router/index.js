@@ -9,7 +9,8 @@ const routes = [
   { path: '/user', component: () => import('../views/User.vue'), meta: { title: '我的', tab: true } },
   { path: '/product/:id', component: () => import('../views/ProductDetail.vue'), meta: { title: '商品详情' } },
   { path: '/checkout', component: () => import('../views/Checkout.vue'), meta: { title: '确认订单', auth: true } },
-  { path: '/orders', component: () => import('../views/Orders.vue'), meta: { title: '我的订单', auth: true } }
+  { path: '/orders', component: () => import('../views/Orders.vue'), meta: { title: '我的订单', auth: true } },
+  { path: '/addresses', component: () => import('../views/Addresses.vue'), meta: { title: '收货地址', auth: true } }
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

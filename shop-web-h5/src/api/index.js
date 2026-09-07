@@ -62,6 +62,13 @@ export const orderDetail = orderNo => request.get(`/order/${orderNo}`)
 export const orderCancel = orderNo => request.post(`/order/cancel/${orderNo}`)
 export const orderConfirm = orderId => request.post(`/order/confirm/${orderId}`)
 
+// ---------- 收货地址 ----------
+export const addressList = () => request.get('/address/list')
+export const addressCreate = data => request.post('/address/create', data)
+export const addressUpdate = (id, data) => request.post(`/address/update/${id}`, data)
+export const addressDelete = id => request.post(`/address/delete/${id}`)
+export const addressSetDefault = id => request.post(`/address/default/${id}`)
+
 // ---------- 支付（模拟通道） ----------
 export const payCreate = orderNo => request.post(`/pay/create/${orderNo}`)
 export const payNotifyMock = data => request.post('/pay/notify', data)
