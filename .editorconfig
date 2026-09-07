@@ -1,0 +1,50 @@
+# EditorConfig: https://editorconfig.org
+# 统一多 IDE 代码风格，IDE 需安装 EditorConfig 插件
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# ---- Java ----
+[*.java]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+# ---- YAML ----
+[*.yml]
+indent_style = space
+indent_size = 2
+
+# ---- Vue / JS / TS ----
+[*.{vue,js,ts}]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# ---- HTML / CSS / SCSS ----
+[*.{html,css,scss}]
+indent_style = space
+indent_size = 2
+
+# ---- JSON ----
+[*.json]
+indent_style = space
+indent_size = 2
+
+# ---- SQL ----
+[*.sql]
+indent_style = space
+indent_size = 4
+
+# ---- Markdown ----
+[*.md]
+trim_trailing_whitespace = false
+
+# ---- Makefile ----
+[Makefile]
+indent_style = tab
