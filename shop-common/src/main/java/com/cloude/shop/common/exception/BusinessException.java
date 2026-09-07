@@ -13,7 +13,7 @@ public class BusinessException extends RuntimeException {
 
     public BusinessException(String message) {
         super(message);
-        this.code = ResultCode.FAILED.getCode();
+        this.code = ResultCode.VALIDATE_FAILED.getCode();
     }
 
     public BusinessException(ResultCode resultCode) {

@@ -55,13 +55,19 @@ public class CartService {
             existing.setQuantity(existing.getQuantity() + quantity);
             cartItemMapper.updateById(existing);
         } else {
-            OmsCartItem item = new OmsCartItem();
-            item.setMemberId(memberId);
-            item.setProductId(productId);
-            item.setQuantity(quantity);
-            item.setPrice(product.getPrice());
-            item.setSelected(1);
-            cartItemMapper.insert(item);
+            // 可能存在逻辑删除的记录（唯一约束 member_id+product_id），恢复而非新增
+            OmsCartItem deleted = cartItemMapper.selectSoftDeleted(memberId, productId);
+            if (deleted != null) {
+                cartItemMapper.restoreSoftDeleted(memberId, productId, quantity, product.getPrice());
+            } else {
+                OmsCartItem item = new OmsCartItem();
+                item.setMemberId(memberId);
+                item.setProductId(productId);
+                item.setQuantity(quantity);
+                item.setPrice(product.getPrice());
+                item.setSelected(1);
+                cartItemMapper.insert(item);
+            }
         }
     }
 
